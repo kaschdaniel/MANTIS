@@ -37,24 +37,22 @@ def main():
     print('Y_test:  '  + str(y_test.shape))
     
     
-    for i in range(9):  
+    for i in range(3):  
         plt.subplot(330 + 1 + i)
         plt.imshow(X_train[i], cmap=plt.get_cmap('gray'))
+        plt.show()
         
-    
-    
     
     
     #%% Selecting only images of class 1 and 7
     
     X_train = X_train[(y_train == 1) | (y_train == 7)]
     y_train = y_train[(y_train == 1) | (y_train == 7)]
-    print(np.shape(X_train))
+    print("Size of Training-Set (X-vals): "+str(np.shape(X_train)))
     
     X_test = X_test[(y_test == 1) | (y_test == 7)]
-    print(np.shape(X_test))
+    print("Size of Test-Set (X-vals): "+str(np.shape(X_test)))
     y_test = y_test[(y_test == 1) | (y_test == 7)]
-    
     
     #%% Preprocessing of images to normalized vector
     
