@@ -3,6 +3,7 @@ import numpy as np
 
 #################################################################################################
 #----------------------------Basic functions-----------------------------------------------------
+#################################################################################################
 
 def beamsplitter():
     return (1/np.sqrt(2)) * np.array([[1, 1j],
@@ -18,34 +19,58 @@ def U(theta, phi): #2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @ B
 
 #################################################################################################
 #----------------------------MZI Array Logic-----------------------------------------------------
+#################################################################################################
 
-def build_layer(thetas, phis, pos=0):
-    # Guard-logic
-    n=len(thetas)
-    if n != len(phis):
+def build_single_layer(thetas, phis, pos=0):
+    """returns full N x N matrix of the layer of position "pos"
+    pos even  -> pairs (0,1),(2,3),...   -> w   MZIs
+    pos odd -> pairs (1,2),(3,4),...     -> w-1 MZIs
+    """
+    if len(thetas) != len(phis):
         raise ValueError("Arrays must have the same length!")
-    pos_is_even: bool = pos % 2 == 0 #check if position of layer is even or not
-    #Builds matrix for one layer of MZI
-    M = np.zeros((2*n, 2*n), dtype=np.complex128)
-    if pos_is_even:
-        for i in range(n):
-            M[2*i:2*i+2, 2*i:2*i+2] = U(thetas[i], phis[i])
-    else:
-        for i in range(n-1):
-            M[2*i+1:2*i+3, 2*i+1:2*i+3] = U(thetas[i], phis[i])
-    return M 
+    N = 2 * len(thetas)                       
+    M = np.eye(N, dtype=np.complex128)        
+    start = 0 if pos % 2 == 0 else 1
+    for i, k in enumerate(range(start, N - 1, 2)):
+        M[k:k+2, k:k+2] = U(thetas[i], phis[i])
+    return M
 
-def apply_layer(E_in, M): #Applies one Mesh-layer
-    E = E_in.copy()
-    E_out = M@E
+def forward_single_layer(E_in, M): #Applies one Mesh-layer
+    E_out = M@E_in
     return E_out
+
+def forward_all_layers_with_history(E_in, params):
+    """params = (phis, thetas), beide Form (w, L) mit w = N//2.
+    Gibt Array (L+1, N) aller Zwischenzustaende zurueck."""
+    phis, thetas = params
+    N = len(E_in)
+    L = phis.shape[1]
+    E = np.asarray(E_in, dtype=np.complex128).copy()
+    hist = [E.copy()]
+    for l in range(L):
+        start = 0 if l % 2 == 0 else 1
+        for i, k in enumerate(range(start, N - 1, 2)):
+            E[k:k+2] = U(thetas[i, l], phis[i, l]) @ E[k:k+2]
+        hist.append(E.copy())
+    return np.array(hist)
 
 #################################################################################################
 #----------------------------Prepare/set weights-------------------------------------------------
+#################################################################################################
 
-#random generate for length l and width w
-
-
-#set given values (in Matrix form)
+#random generate for given length L and width w
+def set_random_weights(L: int, w: int):
+    """L Schichten, w = N//2 MZI-Slots pro Schicht.
+    Rueckgabe: (phis, thetas), beide Form (w, L).
+    Konvention:  theta in [0, pi]  (amplitude, geschlossen)
+                 phi   in [0, 2pi) (phase, zyklisch)."""
+    rng = np.random.default_rng()
+    thetas = rng.uniform(0, np.pi,   (w, L))     # theta in [0, pi]
+    phis   = rng.uniform(0, 2*np.pi, (w, L))     # phi   in [0, 2pi)
+    # odd layers (columns 1,3,5,...) just have w-1 MZIs:
+    # There, the last slot is unused -> set to 0 (acts as identity).
+    thetas[-1, 1::2] = np.nan
+    phis[-1, 1::2]   = np.nan
+    return (phis, thetas)
 
 
