@@ -64,6 +64,54 @@ def amplitude_encoding(image, theta=1):
     E = E * ampl_mod * theta
     return E
 
-
-
+def get_data(values, mode: str, number, m=10, theta=1,
+             normalize_energy=False, seed=None):
+    """Load, encode and sample MNIST data.
+ 
+    Parameters
+    ----------
+    values : array-like of int
+        Wanted MNIST classes, e.g. np.array([1, 7]).
+    mode : str
+        "Testing" or "Training".
+    number : int
+        Amount of data samples requested.
+    m : int
+        New edge size after down-sampling (pixels).
+    theta : float
+        Hyperparameter (amplitude factor).
+    normalize_energy : bool
+        Whether each field is normalized to unit energy.
+    seed : int or None
+        Seed for the shuffle (reproducible splits for the report).
+ 
+    Returns
+    -------
+    E, y : encoded fields (num, N) and labels (num,)
+    """
+    X_train, y_train, X_test, y_test = load_mnist(values)
+ 
+    # --- select split (FIX: Training must use X_train, not X_test) ---
+    if mode == "Testing":
+        X, y = X_test, y_test
+    else:
+        X, y = X_train, y_train
+ 
+    E = encode_batch(X, m, theta, normalize_energy)
+ 
+    # --- consistency check: fields and labels must match in length ---
+    assert len(E) == len(y), \
+        f"Mismatch: {len(E)} fields but {len(y)} labels"
+ 
+    k = len(y)
+ 
+    # Case 1: fewer images available than requested
+    if number > k:
+        print(f"Just {k} images found. (Requested number = {number})")
+        return E, y
+ 
+    # Case 2: more available than requested -> random subset
+    rng = np.random.default_rng(seed)
+    indices = rng.permutation(k)[:number]
+    return E[indices], y[indices]
 
