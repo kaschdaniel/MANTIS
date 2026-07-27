@@ -9,21 +9,74 @@ from keras.datasets import mnist
 
 
 def linear_regression(X_train, y_train, X_test, y_test):
+    '''
+    Linear regression, calculation of confusion matrix and accuracy
+
+    Parameters
+    ----------
+    X_train : TYPE
+        DESCRIPTION.
+    y_train : TYPE
+        DESCRIPTION.
+    X_test : TYPE
+        DESCRIPTION.
+    y_test : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    theta : TYPE
+        DESCRIPTION.
+    y_predict : TYPE
+        DESCRIPTION.
+    accuracy : TYPE
+        DESCRIPTION.
+
+    '''
+    # Change y labels from 1 and 7 to 0 and 1
+    y_train = (y_train == 7).astype(int)
+    y_test = (y_test == 7).astype(int)
+    
     # MODEL TRAINING
     F = np.vstack([np.ones(len(X_train)), X_train.T]).T
     # Calculate Moore-Penrose pseudoinverse
     theta = np.linalg.pinv(F) @ y_train
 
     # MODEL TESTING
-    y_predict = theta[0] + np.sum(theta[1:] * X_test)
-        
-    mse = calc_mse(y_test, y_predict)
+    y_pred = theta[0] + np.sum(theta[1:] * X_test, axis = 1)
+    y_pred_label = (y_pred >= 0.5).astype(np.float64)
     
-    return theta, y_predict, mse
+    conf_matrix = confusion_matrix(y_test, y_pred_label)
+    
+    accuracy = (conf_matrix[0,0]+ conf_matrix[1,1])/np.sum(conf_matrix)
+    
+    return theta, y_pred, accuracy
 
-def calc_mse(y, y_predict):
-    return np.sum((y-y_predict)**2)/len(y)
-    
+
+def confusion_matrix(y_true, y_pred_label):
+    '''
+    Calculate confusion matrix for binary classification
+
+    Parameters
+    ----------
+    y_true : 1D Array of int
+        True labels.
+    y_pred_label : 1D Array of int
+        Predicted labels.
+
+    Returns
+    -------
+    conf_matrix : 2x2 Array of int
+        Confusion matrix.
+
+    '''
+    conf_matrix = np.zeros((2, 2), dtype=int)
+    for t in (0, 1):
+        for p in (0, 1):
+            conf_matrix[t, p] = np.sum((y_true == t) & (y_pred_label == p))
+    print(conf_matrix)
+    return conf_matrix
+  
     
 
 def main():
@@ -86,8 +139,8 @@ def main():
     
     #%% Linear regression as baseline
     
-    theta, y_predict, mse = linear_regression(X_train_vec, y_train, X_test_vec, y_test)
-    print(mse)
+    theta, y_predict, accuracy = linear_regression(X_train_vec, y_train, X_test_vec, y_test)
+    print(accuracy)
     
     
     
