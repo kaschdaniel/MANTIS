@@ -39,19 +39,24 @@ def forward_single_layer(E_in, M): #Applies one Mesh-layer
     E_out = M@E_in
     return E_out
 
-def forward_all_layers_with_history(E_in, params):
-    """params = (phis, thetas), beide Form (w, L) mit w = N//2.
-    Gibt Array (L+1, N) aller Zwischenzustaende zurueck."""
-    phis, thetas = params
-    N = len(E_in)
-    L = phis.shape[1]
-    E = np.asarray(E_in, dtype=np.complex128).copy()
+def forward(E_in, layers): #for propagation through given layers, returns only last E-Values
+    """E_in: (N,) fuer ein Sample oder (N, B) fuer einen Batch.
+    layers: Liste der N x N Layer-Matrizen (aus mesh.layer_matrices()).
+    Batch funktioniert ohne Sonderfall, weil M @ E in NumPy
+    fuer Vektoren und Matrizen dasselbe tut."""
+    E = np.asarray(E_in, dtype=np.complex128)
+    for Ml in layers:
+        E = Ml @ E
+    return E
+
+
+def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
+    """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
+    Rueckgabe: (L+1, N) bzw. (L+1, N, B), Eintrag l ist das Feld VOR Layer l."""
+    E = np.asarray(E_in, dtype=np.complex128)
     hist = [E.copy()]
-    for l in range(L):
-        start = 0 if l % 2 == 0 else 1
-        for i, k in enumerate(range(start, N - 1, 2)):
-            E[k:k+2] = U(thetas[i, l], phis[i, l]) @ E[k:k+2]
+    for Ml in layers:
+        E = Ml @ E
         hist.append(E.copy())
     return np.array(hist)
-
 

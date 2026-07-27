@@ -101,7 +101,7 @@ def get_data(values, mode: str, number, m=10, theta=1,
  
     Returns
     -------
-    E, y : encoded fields (num, N) and labels (num,)
+    E, y : encoded fields (N,num) and labels (num,)
     """
     X_train, y_train, X_test, y_test = load_mnist(values)
  
@@ -111,21 +111,21 @@ def get_data(values, mode: str, number, m=10, theta=1,
     else:
         X, y = X_train, y_train
  
-    E = encode_batch(X, m, theta, normalize_energy)
- 
-    # --- consistency check: fields and labels must match in length ---
+    E = encode_batch(X, m, theta, normalize_energy)   # (B, N): Zeile = Bild
+
+    # consistency check auf der Bild-Achse
     assert len(E) == len(y), \
         f"Mismatch: {len(E)} fields but {len(y)} labels"
- 
-    k = len(y)
- 
+
+    k = len(y) #number of samples
+
     # Case 1: fewer images available than requested
     if number > k:
         print(f"Just {k} images found. (Requested number = {number})")
-        return E, y
- 
+        return E.T, y                      # erst hier -> (N, k)
+
     # Case 2: more available than requested -> random subset
     rng = np.random.default_rng(seed)
     indices = rng.permutation(k)[:number]
-    return E[indices], y[indices]
+    return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
 

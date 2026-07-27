@@ -7,49 +7,37 @@ from matplotlib.cm import ScalarMappable
 
 def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
                        cmap="inferno", log=False):
-    """Intensitaetsverteilung |E|^2 als Heatmap.
- 
-    Parameter
-    ---------
-    intensities : array (L+1, N)
-        z.B. np.abs(forward_all_layers_with_history(E_in, params))**2
-        Zeile s = Feldzustand nach s Schichten (s=0 ist der Eingang).
-    detectors : list[int], optional
-        Kanalindizes, die am rechten Rand markiert werden.
-    log : bool
-        Logarithmische Farbskala. Sinnvoll, wenn das Feld stark
-        lokalisiert ist (grosser Dynamikbereich durch den Lichtkegel).
+    """Feldintensitaet |E|^2 als Heatmap (Kanal ueber Layer).
+
+    intensities : (L+1, N), z.B. np.abs(forward_history(E_in, layers))**2
+                  Zeile s = Feld nach s Layern (s=0 = Eingang).
+    detectors   : Kanalindizes, am rechten Rand markiert.
+    log         : logarithmische Farbskala bei stark lokalisiertem Feld.
     """
     I = np.asarray(intensities, dtype=float)
-    L1, N = I.shape                            # L1 = L+1
- 
+    if I.ndim != 2:
+        raise ValueError(f"erwarte (L+1, N), bekommen {I.shape} "
+                         "- bei Batch erst ein Sample waehlen: hist[:, :, b]")
+    L1, N = I.shape
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(max(6, 0.09*L1 + 4), max(3, 0.05*N + 3)))
     else:
         fig = ax.figure
- 
-    data = I.T                                 # -> (N, L+1): Kanal auf y-Achse
-    if log:
-        data = np.log10(np.maximum(data, 1e-12))
- 
-    im = ax.imshow(data, aspect="auto", origin="upper", cmap=cmap,
-                   interpolation="nearest",
+
+    data = np.log10(np.maximum(I.T, 1e-12)) if log else I.T
+    im = ax.imshow(data, aspect="auto", cmap=cmap, interpolation="nearest",
                    extent=[-0.5, L1 - 0.5, N - 0.5, -0.5])
- 
-    if detectors is not None:
-        for d in detectors:
-            ax.plot(L1 - 0.5, d, marker="<", ms=10, color="lime",
-                    clip_on=False, zorder=5)
-            ax.text(L1 - 0.2, d, f"det {d}", va="center", fontsize=8,
-                    color="lime", clip_on=False)
- 
+
+    for d in (detectors or []):
+        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="lime", clip_on=False, zorder=5)
+        ax.text(L1 - 0.2, d, f"det {d}", va="center", fontsize=8, color="lime", clip_on=False)
+
     ax.set_xlabel("layer  (0 = input field)")
-    ax.set_ylabel("channel $k$")
+    ax.set_ylabel(r"channel $k$")
     ax.set_title(title or r"field intensity $|E|^2$")
- 
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
     cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
- 
     fig.tight_layout()
     return fig, ax
 
@@ -147,3 +135,32 @@ def plot_mesh(mesh, ax=None, color_by=None, detectors=None,
     ax.set_title(title if title is not None
                  else f"N={N}, {L} Layer, {n_mzi} MZIs", fontsize=10)
     return ax
+
+def plot_layers(layers, mode: str = "Abs"):
+    """ Plots the layers as transfer-matrices
+    mode: Either "Abs" or "Complex" for np.abs(layers) or np.imag(layers) and np.real(layers)
+    """
+    L = len(layers)
+
+    if mode == "Complex":
+        # zwei Zeilen: Realteil oben, Imaginaerteil unten
+        fig, axes = plt.subplots(2, L, figsize=(2.2*L, 4.6))
+        for l, M in enumerate(layers):
+            im = axes[0, l].matshow(np.real(M), vmin=-1, vmax=1, cmap="RdBu_r")
+            axes[1, l].matshow(np.imag(M), vmin=-1, vmax=1, cmap="RdBu_r")
+            axes[0, l].set_title(f"L{l}", fontsize=9)
+            for row in (0, 1):
+                axes[row, l].set_xticks([]); axes[row, l].set_yticks([])
+        axes[0, 0].set_ylabel("Re", fontsize=10)
+        axes[1, 0].set_ylabel("Im", fontsize=10)
+        fig.colorbar(im, ax=axes, shrink=0.6)
+        return fig, axes
+
+    # Standard: Betrag, eine Zeile
+    fig, axes = plt.subplots(1, L, figsize=(2.2*L, 2.4))
+    for l, (ax, M) in enumerate(zip(axes, layers)):
+        im = ax.matshow(np.abs(M), vmin=0, vmax=1)
+        ax.set_title(f"L{l}", fontsize=9)
+        ax.set_xticks([]); ax.set_yticks([])
+    fig.colorbar(im, ax=axes, shrink=0.7)
+    return fig, axes
