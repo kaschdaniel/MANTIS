@@ -2,22 +2,6 @@
 import numpy as np
 
 #################################################################################################
-#----------------------------Basic functions-----------------------------------------------------
-#################################################################################################
-
-def beamsplitter():
-    return (1/np.sqrt(2)) * np.array([[1, 1j],
-                                    [1j, 1]], dtype=np.complex128) #Datatype not optimal for GPU Acceleration
-
-def phase_shift(alpha): #Phaseshift for upper mode
-    return np.array([[np.exp(1j*alpha), 0],
-                     [0, 1]], dtype=np.complex128)
-
-def U(theta, phi): #2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @ B 
-    B = beamsplitter()
-    return phase_shift(phi) @ B @ phase_shift(theta) @ B
-
-#################################################################################################
 #----------------------------MZI Array Logic-----------------------------------------------------
 #################################################################################################
 
