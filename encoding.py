@@ -37,7 +37,21 @@ def reshape_and_normalize(image):
     return image.reshape(-1).astype(np.float64) / 255 #suggested by claude instead of previous way
     #return image.reshape(image.shape[0]*image.shape[0]).astype(np.float) / 255
 
-
+def encode_batch(images, m=10, theta=1, normalize_energy=False):
+    images = np.asarray(images)
+    if images.ndim == 2:              #For the case of single or array of pictures
+        images = images[None, ...]
+    fields = []
+    for img in images:
+        small = down_sample(img, m=m)
+        vec = reshape_and_normalize(small)
+        E = amplitude_encoding(vec, theta)
+        if normalize_energy:
+            nrm = np.linalg.norm(E)
+            if nrm > 0:
+                E = E / nrm
+        fields.append(E)
+    return np.array(fields)
 
 def amplitude_encoding(image, theta=1):
     '''
