@@ -159,9 +159,10 @@ class MZIMesh:
         problematisch beschreiben (banded unitary / random walk)."""
         if rng is None:
             rng = np.random.default_rng()
-        thetas = [rng.uniform(0, np.pi, n) for n in self.slot_counts]
-        phis = [rng.uniform(0, 2*np.pi, n) for n in self.slot_counts]
-        return thetas, phis
+        thetas = [rng.uniform(0, np.pi, n) for n in self.slot_counts] #creates as many random values for theta as there are needed in each layer
+        phis = [rng.uniform(0, 2*np.pi, n) for n in self.slot_counts] #... for phi ..
+
+        return thetas, phis #Returns python lists containing numpy arrays
 
     def init_haar(self, rng=None):
         """Haar-Initialisierung (Pai Gl. 9):
@@ -257,7 +258,7 @@ class MZIMesh:
         """Gesamt-Transfermatrix M = M_L @ ... @ M_2 @ M_1."""
         M = np.eye(self.N, dtype=np.complex128)
         for Ml in self.layer_matrices(thetas, phis):
-            M = Ml @ M
+            M = Ml @ M #using associativity of matrix multiplication
         return M
 
     # -------------------------------------------------- Propagation

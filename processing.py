@@ -54,23 +54,4 @@ def forward_all_layers_with_history(E_in, params):
         hist.append(E.copy())
     return np.array(hist)
 
-#################################################################################################
-#----------------------------Prepare/set weights-------------------------------------------------
-#################################################################################################
-
-#random generate for given length L and width w
-def set_random_weights(L: int, w: int):
-    """L Schichten, w = N//2 MZI-Slots pro Schicht.
-    Rueckgabe: (phis, thetas), beide Form (w, L).
-    Konvention:  theta in [0, pi]  (amplitude, geschlossen)
-                 phi   in [0, 2pi) (phase, zyklisch)."""
-    rng = np.random.default_rng()
-    thetas = rng.uniform(0, np.pi,   (w, L))     # theta in [0, pi]
-    phis   = rng.uniform(0, 2*np.pi, (w, L))     # phi   in [0, 2pi)
-    # odd layers (columns 1,3,5,...) just have w-1 MZIs:
-    # There, the last slot is unused -> set to 0 (acts as identity).
-    thetas[-1, 1::2] = np.nan
-    phis[-1, 1::2]   = np.nan
-    return (phis, thetas)
-
 
