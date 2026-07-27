@@ -1,0 +1,281 @@
+"""
+mesh.py -- Aufbau und Propagation von MZI-Meshes.
+
+Grundidee:
+Ein Mesh ist nichts weiter als eine LISTE VON LAYERN. Ein Layer ist ein Tupel
+
+    ("mzi", ks)     ks = Liste der oberen Wellenleiter-Indizes, z.B. [0, 2, 4]
+                    -> MZIs sitzen auf den Paaren (0,1), (2,3), (4,5)
+
+    ("perm", perm)  perm = Index-Array, feste Verdrahtung ohne Parameter
+                    -> nur fuer die permuting-Architektur (PRM)
+
+Die verschiedenen Architekturen (rectangular, triangular, redundant, permuting)
+unterscheiden sich AUSSCHLIESSLICH in dieser Liste. Der Code, der daraus
+Matrizen macht, ist fuer alle derselbe. Eine neue Architektur = eine neue
+plan_*() Funktion, sonst nichts.
+"""
+
+import numpy as np
+
+
+#################################################################################################
+# ----------------------------2x2 Blocks------------------------------------------------------
+#################################################################################################
+
+def beamsplitter():
+    return (1/np.sqrt(2)) * np.array([[1, 1j],
+                                      [1j, 1]], dtype=np.complex128)
+
+
+def phase_shift(alpha):  # Phaseshift for upper mode
+    return np.array([[np.exp(1j*alpha), 0],
+                     [0, 1]], dtype=np.complex128)
+
+
+def U(theta, phi):  # 2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @ B
+    B = beamsplitter()
+    return phase_shift(phi) @ B @ phase_shift(theta) @ B
+
+
+#################################################################################################
+# ----------------------------Bauplaene (Architekturen)------------------------------------------
+#################################################################################################
+
+def plan_rectangular(N, L):
+    """Clements / rectangular mesh: L Layer, abwechselnd Offset 0 und 1.
+    Universell fuer L = N. Rueckgabe: Liste von ("mzi", ks)."""
+    plan = []
+    for l in range(L):
+        start = l % 2
+        ks = list(range(start, N - 1, 2))
+        plan.append(("mzi", ks))
+    return plan
+
+
+def plan_redundant(N, extra_layers):
+    """Redundant rectangular mesh (RRM, Pai Sec. IV A):
+    identisch zum rectangular mesh, nur mit mehr Layern als noetig.
+    Mehr Parameter -> deutlich bessere Konvergenz."""
+    return plan_rectangular(N, N + extra_layers)
+
+
+def plan_triangular(N):
+    """Reck / triangular mesh: 2N-3 Layer, insgesamt N(N-1)/2 MZIs.
+
+    Ein MZI sitzt auf Paar (k, k+1) im Layer l genau dann, wenn
+        (1) k und l dieselbe Paritaet haben   -> MZIs ueberlappen nicht
+        (2) k >= |l - (N-2)|                  -> schneidet das Dreieck aus
+
+    Bedingung (2) laesst die Layer von der Breite 1 auf N/2 in der Mitte
+    (Layer l = N-2, dort sitzt der 'apex' bei k=0) anwachsen und wieder
+    schrumpfen. Damit ist jedes Layer unterschiedlich breit -- deshalb die
+    Speicherung der Gewichte als Liste statt als (w, L)-Array.
+    """
+    plan = []
+    for l in range(2*N - 3):
+        k_min = abs(l - (N - 2))
+        ks = [k for k in range(k_min, N - 1) if k % 2 == l % 2]
+        plan.append(("mzi", ks))
+    return plan
+
+
+def _rect_permutation(N, k):
+    """Hilfsfunktion: eine feste Verdrahtung P_k, die Wellenleiter um 2^k
+    verschiebt (Pai Sec. IV B). Innerhalb jedes Blocks der Groesse 2^(k+1)
+    werden die beiden Haelften getauscht.
+
+    Achtung: das Paper legt P_k nicht eindeutig fest, das hier ist eine
+    konkrete, plausible Wahl.
+    """
+    shift = 2**k
+    block = 2*shift
+    perm = np.arange(N)
+    for start in range(0, N - block + 1, block):
+        idx = perm[start:start+block].copy()
+        perm[start:start+block] = np.concatenate([idx[shift:], idx[:shift]])
+    return perm
+
+
+def plan_permuting(N, K=None):
+    """Permuting rectangular mesh (PRM, Pai Sec. IV B):
+    K Bloecke aus je ceil(N/K) rectangular-Layern, dazwischen feste
+    Permutationen P_1 ... P_(K-1). Die Permutationen lassen weit entfernte
+    Wellenleiter miteinander wechselwirken -> kein banded unitary."""
+    if K is None:
+        K = int(np.ceil(np.log2(N)))
+    per_block = int(np.ceil(N / K))
+    plan = []
+    for k in range(K):
+        plan += plan_rectangular(N, per_block)
+        if k < K - 1:
+            plan.append(("perm", _rect_permutation(N, k + 1)))
+    return plan
+
+
+#################################################################################################
+# ----------------------------Mesh-Klasse--------------------------------------------------------
+#################################################################################################
+
+class MZIMesh:
+    """Haelt die ARCHITEKTUR (N + Bauplan), NICHT die Gewichte.
+
+    Die Gewichte werden bewusst von aussen uebergeben. Das kostet ein paar
+    Zeichen mehr beim Aufruf, macht aber Gradientenchecks und
+    Finite-Differenzen trivial: man ruft die Funktion einfach mit gestoerten
+    Parametern auf, statt Objektzustand hin- und herzukopieren.
+
+    Gewichte-Konvention:
+        thetas, phis = Listen der Laenge L (= Anzahl Layer).
+        thetas[l] ist ein 1D-Array mit einem Eintrag pro MZI in Layer l.
+        Fuer perm-Layer ist der Eintrag ein leeres Array.
+    """
+
+    def __init__(self, N, plan):
+        if N % 2 != 0:
+            raise ValueError("N sollte gerade sein.")
+        self.N = N
+        self.plan = plan
+
+    # -------------------------------------------------- Struktur-Infos
+    @property
+    def n_layers(self):
+        return len(self.plan)
+
+    @property
+    def slot_counts(self):
+        """Anzahl MZIs pro Layer, z.B. [4, 3, 4, 3, ...]."""
+        return [len(data) if kind == "mzi" else 0 for kind, data in self.plan]
+
+    @property
+    def n_mzis(self):
+        """Anzahl trainierbarer MZIs (jedes hat theta UND phi)."""
+        return sum(self.slot_counts)
+
+    # -------------------------------------------------- Initialisierung
+    def init_random(self, rng=None):
+        """Uniforme Initialisierung: theta in [0, pi], phi in [0, 2pi).
+        Achtung: das ist genau die Initialisierung, die Pai et al. als
+        problematisch beschreiben (banded unitary / random walk)."""
+        if rng is None:
+            rng = np.random.default_rng()
+        thetas = [rng.uniform(0, np.pi, n) for n in self.slot_counts]
+        phis = [rng.uniform(0, 2*np.pi, n) for n in self.slot_counts]
+        return thetas, phis
+
+    def init_haar(self, rng=None):
+        """Haar-Initialisierung (Pai Gl. 9):
+            t = xi^(1/alpha),  theta = 2*arccos(sqrt(t)),  xi ~ U(0,1)
+        alpha ist der Sensitivitaetsindex des jeweiligen MZI. Sorgt dafuer,
+        dass Licht von jedem Eingang gleichmaessig auf alle Ausgaenge
+        verteilt wird statt sich um die Diagonale zu draengen."""
+        if rng is None:
+            rng = np.random.default_rng()
+        alphas = self.sensitivity_index()
+        thetas, phis = [], []
+        for a in alphas:
+            xi = rng.uniform(0, 1, len(a))
+            t = xi ** (1.0 / np.maximum(a, 1))
+            thetas.append(2 * np.arccos(np.sqrt(t)))
+            phis.append(rng.uniform(0, 2*np.pi, len(a)))
+        return thetas, phis
+
+    def sensitivity_index(self):
+        """alpha = |I| + |O| - N - 1 fuer jedes MZI (Pai Sec. III A).
+
+        |I| = wieviele Eingaenge dieses MZI erreichen koennen,
+        |O| = wieviele Ausgaenge es beeinflussen kann.
+
+        Statt Formeln pro Architektur zu suchen, wird die Erreichbarkeit
+        einfach einmal vorwaerts und einmal rueckwaerts durchpropagiert.
+        reach[i] ist eine Bool-Zeile: welche Eingaenge erreichen Wellenleiter i.
+        Das funktioniert damit fuer JEDEN Bauplan, auch mit Permutationen.
+        """
+        N = self.N
+
+        # vorwaerts: |I| an jedem Knoten einsammeln
+        reach = np.eye(N, dtype=bool)
+        I_counts = []
+        for kind, data in self.plan:
+            if kind == "perm":
+                reach = reach[data]
+                I_counts.append(np.zeros(0, dtype=int))
+                continue
+            counts = []
+            for k in data:
+                both = reach[k] | reach[k+1]
+                counts.append(int(both.sum()))
+            for i, k in enumerate(data):          # erst zaehlen, dann mischen
+                both = reach[k] | reach[k+1]
+                reach[k] = both
+                reach[k+1] = both
+            I_counts.append(np.array(counts))
+
+        # rueckwaerts: |O| an jedem Knoten einsammeln
+        reach = np.eye(N, dtype=bool)
+        O_counts = []
+        for kind, data in reversed(self.plan):
+            if kind == "perm":
+                inv = np.argsort(data)
+                reach = reach[inv]
+                O_counts.append(np.zeros(0, dtype=int))
+                continue
+            counts = []
+            for k in data:
+                both = reach[k] | reach[k+1]
+                counts.append(int(both.sum()))
+            for k in data:
+                both = reach[k] | reach[k+1]
+                reach[k] = both
+                reach[k+1] = both
+            O_counts.append(np.array(counts))
+        O_counts = O_counts[::-1]
+
+        return [Ic + Oc - N - 1 for Ic, Oc in zip(I_counts, O_counts)]
+
+    # -------------------------------------------------- Matrizen
+    def layer_matrices(self, thetas, phis):
+        """Liste der N x N Matrizen, eine pro Layer.
+
+        Bewusst NICHT nur das Produkt: die adjungierte Backpropagation
+        braucht die Felder an jedem einzelnen Layer, und die Feld-
+        visualisierung fuer den Bericht ebenfalls.
+        """
+        N = self.N
+        mats = []
+        for (kind, data), th, ph in zip(self.plan, thetas, phis):
+            if kind == "perm":
+                mats.append(np.eye(N, dtype=np.complex128)[data])
+                continue
+            M = np.eye(N, dtype=np.complex128)
+            for i, k in enumerate(data):
+                M[k:k+2, k:k+2] = U(th[i], ph[i])
+            mats.append(M)
+        return mats
+
+    def matrix(self, thetas, phis):
+        """Gesamt-Transfermatrix M = M_L @ ... @ M_2 @ M_1."""
+        M = np.eye(self.N, dtype=np.complex128)
+        for Ml in self.layer_matrices(thetas, phis):
+            M = Ml @ M
+        return M
+
+    # -------------------------------------------------- Propagation
+    def forward(self, E_in, thetas, phis):
+        """E_in: (N,) fuer ein Sample oder (N, B) fuer einen Batch.
+        Beides funktioniert ohne Sonderfall, weil M @ E in NumPy
+        fuer Vektoren und Matrizen dasselbe tut."""
+        E = np.asarray(E_in, dtype=np.complex128)
+        for Ml in self.layer_matrices(thetas, phis):
+            E = Ml @ E
+        return E
+
+    def forward_history(self, E_in, thetas, phis):
+        """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
+        Rueckgabe: Liste der Laenge L+1, Eintrag l ist das Feld VOR Layer l."""
+        E = np.asarray(E_in, dtype=np.complex128)
+        hist = [E.copy()]
+        for Ml in self.layer_matrices(thetas, phis):
+            E = Ml @ E
+            hist.append(E.copy())
+        return hist
