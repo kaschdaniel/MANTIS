@@ -78,7 +78,7 @@ def amplitude_encoding(image, theta=1):
     E = E * ampl_mod * theta
     return E
 
-def get_data(values, mode: str, number, m=10, theta=1,
+def get_data(values, mode: str, number=None, m=10, theta=1,
              normalize_energy=False, seed=None):
     """Load, encode and sample MNIST data.
  
@@ -120,12 +120,15 @@ def get_data(values, mode: str, number, m=10, theta=1,
     k = len(y) #number of samples
 
     # Case 1: fewer images available than requested
-    if number > k:
+    if number == None:
+        return E.T, y
+    elif (number > k):
         print(f"Just {k} images found. (Requested number = {number})")
         return E.T, y                      # erst hier -> (N, k)
-
-    # Case 2: more available than requested -> random subset
-    rng = np.random.default_rng(seed)
-    indices = rng.permutation(k)[:number]
-    return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
+    else:
+        # Case 2: more available than requested -> random subset
+        rng = np.random.default_rng(seed)
+        indices = rng.permutation(k)[:number]
+        return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
+    raise ValueError("Handling of variable 'number' threw exception!")
 

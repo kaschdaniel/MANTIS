@@ -20,23 +20,25 @@ import numpy as np
 
 
 #################################################################################################
-# ----------------------------2x2 Blocks------------------------------------------------------
+#----------------------------Basic functions-----------------------------------------------------
 #################################################################################################
 
-def beamsplitter():
-    return (1/np.sqrt(2)) * np.array([[1, 1j],
-                                      [1j, 1]], dtype=np.complex128)
+def beamsplitter(eta=1.0):
+    """eta in [0,1]: Leistungstransmission des Strahlteilers.
+    eta=1 -> verlustfrei (unitaerer Standard-BS)."""
+    B_ideal = (1/np.sqrt(2)) * np.array([[1, 1j],
+                                         [1j, 1]], dtype=np.complex128)
+    return np.sqrt(eta) * B_ideal
 
-
-def phase_shift(alpha):  # Phaseshift for upper mode
+def phase_shift(alpha): #Phaseshift for upper mode
     return np.array([[np.exp(1j*alpha), 0],
                      [0, 1]], dtype=np.complex128)
 
-
-def U(theta, phi):  # 2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @ B
-    B = beamsplitter()
+def U(theta, phi, eta=1.0):  # 2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @ B
+    """eta: Leistungstransmission je Strahlteiler. Zwei BS pro MZI
+    -> Gesamt-MZI-Transmission eta**2. eta=1 -> verlustfrei/unitaer."""
+    B = beamsplitter(eta)
     return phase_shift(phi) @ B @ phase_shift(theta) @ B
-
 
 #################################################################################################
 # ----------------------------Bauplaene (Architekturen)------------------------------------------
