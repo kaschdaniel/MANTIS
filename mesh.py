@@ -235,48 +235,50 @@ class MZIMesh:
         return [Ic + Oc - N - 1 for Ic, Oc in zip(I_counts, O_counts)]
 
     # -------------------------------------------------- Matrizen
-    def layer_matrices(self, thetas, phis):
+    def layer_matrices(self, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
         """Liste der N x N Matrizen, eine pro Layer.
+
+        eta_bs      : Leistungstransmission je Strahlteiler (BS-Verlust).
+                      1.0 -> verlustfrei.
+        alpha_fiber : Wellenleiterverlust in dB pro Layer-Abschnitt.
+                      0.0 -> verlustfrei. Wird als diagonaler Faktor an
+                      JEDES Layer multipliziert (betrifft auch Kanaele
+                      ohne MZI), getrennt vom BS-Verlust.
 
         Bewusst NICHT nur das Produkt: die adjungierte Backpropagation
         braucht die Felder an jedem einzelnen Layer, und die Feld-
         visualisierung fuer den Bericht ebenfalls.
         """
         N = self.N
+        # dB (Leistung) -> Amplitudenfaktor: 10^(-alpha/20)
+        fiber_amp = 10.0 ** (-alpha_fiber / 20.0)
         mats = []
         for (kind, data), th, ph in zip(self.plan, thetas, phis):
             if kind == "perm":
-                mats.append(np.eye(N, dtype=np.complex128)[data])
-                continue
-            M = np.eye(N, dtype=np.complex128)
-            for i, k in enumerate(data):
-                M[k:k+2, k:k+2] = U(th[i], ph[i])
-            mats.append(M)
+                M = np.eye(N, dtype=np.complex128)[data]
+            else:
+                M = np.eye(N, dtype=np.complex128)
+                for i, k in enumerate(data):
+                    M[k:k+2, k:k+2] = U(th[i], ph[i], eta_bs)
+            mats.append(fiber_amp * M)   # Fiber-Verlust: getrennter Diagonalfaktor
         return mats
 
-    def matrix(self, thetas, phis):
-        """Gesamt-Transfermatrix M = M_L @ ... @ M_2 @ M_1."""
-        M = np.eye(self.N, dtype=np.complex128)
-        for Ml in self.layer_matrices(thetas, phis):
-            M = Ml @ M #using associativity of matrix multiplication
-        return M
-
     # -------------------------------------------------- Propagation
-    def forward(self, E_in, thetas, phis):
+    def forward(self, E_in, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
         """E_in: (N,) fuer ein Sample oder (N, B) fuer einen Batch.
         Beides funktioniert ohne Sonderfall, weil M @ E in NumPy
         fuer Vektoren und Matrizen dasselbe tut."""
         E = np.asarray(E_in, dtype=np.complex128)
-        for Ml in self.layer_matrices(thetas, phis):
+        for Ml in self.layer_matrices(thetas, phis, eta_bs, alpha_fiber):
             E = Ml @ E
         return E
 
-    def forward_history(self, E_in, thetas, phis):
+    def forward_history(self, E_in, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
         """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
         Rueckgabe: Liste der Laenge L+1, Eintrag l ist das Feld VOR Layer l."""
         E = np.asarray(E_in, dtype=np.complex128)
         hist = [E.copy()]
-        for Ml in self.layer_matrices(thetas, phis):
+        for Ml in self.layer_matrices(thetas, phis, eta_bs, alpha_fiber):
             E = Ml @ E
             hist.append(E.copy())
         return hist
