@@ -30,8 +30,8 @@ def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
                    extent=[-0.5, L1 - 0.5, N - 0.5, -0.5])
 
     for d in (detectors or []):
-        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="lime", clip_on=False, zorder=5)
-        ax.text(L1 - 0.2, d, f"det {d}", va="center", fontsize=8, color="lime", clip_on=False)
+        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5)
+        ax.text(L1 +0.5, d, f"det {d}", va="center",rotation='vertical', fontsize=8, color="forestgreen", clip_on=False)
 
     ax.set_xlabel("layer  (0 = input field)")
     ax.set_ylabel(r"channel $k$")
@@ -40,6 +40,111 @@ def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
     cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
     fig.tight_layout()
     return fig, ax
+
+
+def plot_intensity_map_with_histogram(I, det1, det7, Y,
+                                      cmap="inferno", log=False,
+                                      class_colors=("tab:cyan", "tab:orange"),
+                                      target_color="red", title=None):
+    """Intensitaetskarte + gedrehtes Histogramm der Ausgangsintensitaeten.
+ 
+    I    : (L+1, N) fuer ein Sample oder (L+1, N, B) fuer einen Batch.
+           Zeile s = Feldintensitaet nach s Layern (s=0 = Eingang).
+    det1 : Kanalindex des Detektors fuer Klasse "1".
+    det7 : Kanalindex des Detektors fuer Klasse "7".
+    Y    : Label(s). Skalar/int fuer ein Sample, sonst Array (B,).
+ 
+    Heatmap  = Mittelwert ueber alle Samples.
+    Histogram = Ausgangsintensitaet je Kanal, pro Klasse ueberlagert
+                halbtransparent, plus schraffiertes Ziel-Overlay.
+    """
+    I = np.asarray(I, dtype=float)
+    Y = np.atleast_1d(np.asarray(Y))
+ 
+    # ---------- Formen vereinheitlichen: immer (L+1, N, B) ----------
+    if I.ndim == 2:
+        I = I[:, :, None]
+    elif I.ndim != 3:
+        raise ValueError(f"erwarte (L+1, N) oder (L+1, N, B), bekommen {I.shape}")
+    L1, N, B = I.shape
+    if len(Y) != B:
+        raise ValueError(f"Y hat {len(Y)} Labels, I aber {B} Samples")
+ 
+    heat = I.mean(axis=2)                    # (L+1, N): Mittel ueber Samples
+    I_out = I[-1]                            # (N, B): Ausgangsintensitaeten
+ 
+    # ---------- pro Klasse mitteln und normieren ----------
+    classes = np.unique(Y)
+    bars = {}
+    for c in classes:
+        mask = (Y == c)
+        prof = I_out[:, mask].mean(axis=1)   # mittlere Intensitaet je Kanal
+        total = prof.sum()
+        bars[c] = prof / total if total > 0 else prof
+ 
+    # ---------- Layout: Colorbar links, Heatmap mitte, Histogram rechts ----------
+    fig, (cax, ax, hax) = plt.subplots(
+        1, 3, figsize=(max(9, 0.09*L1 + 6), max(3.5, 0.05*N + 3)),
+        gridspec_kw={"width_ratios": [0.035, 1.0, 0.42], "wspace": 0.15})
+ 
+    data = np.log10(np.maximum(heat.T, 1e-12)) if log else heat.T
+    im = ax.imshow(data, aspect="auto", cmap=cmap, interpolation="nearest",
+                   extent=[-0.5, L1 - 0.5, N - 0.5, -0.5])
+    ax.set_xlabel("layer  (0 = input field)")
+    ax.set_ylabel(r"channel $k$")
+    ax.set_title(title or r"mean field intensity $|E|^2$")
+ 
+    cb = fig.colorbar(im, cax=cax)
+    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
+    cax.yaxis.set_ticks_position("left")
+    cax.yaxis.set_label_position("left")
+ 
+    # ---------- Histogram: barh = um 90 Grad gedreht ----------
+    channels = np.arange(N)
+    for c, col in zip(classes, class_colors):
+        hax.barh(channels, bars[c], height=0.85, color=col, alpha=0.55,
+                 label=f"class {c}", zorder=2)
+ 
+    # ---------- Ziel-Overlay ----------
+    # Option 3a (gewaehlt): Ziel ist die literale 1.0 -> gesamte Energie am Detektor
+    target_scale = 1.0
+    # --- alternative Skalierungen, bei Bedarf einkommentieren -------------
+    # Option 3b: auf die hoechste vorkommende Balkenhoehe
+    # target_scale = max(b.max() for b in bars.values())
+    # Option 3c: auf die Summe der beiden Detektorbalken
+    # target_scale = max(sum(b[[det1, det7]].sum() for b in bars.values()), 1e-12)
+    # ---------------------------------------------------------------------
+    # Detectors
+    detectors=np.array([det1, det7])
+    labels=["1","7"]
+    for d,l in zip(detectors,labels):
+        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5)
+        ax.text(L1 + 0.75, d, f"det {l}", va="center",rotation='vertical', fontsize=8, color="forestgreen", clip_on=False)
+
+ 
+
+    #----------------------------------------------------------------------
+    for c in classes:
+        d = det1 if c == classes[0] else det7
+        hax.barh([d], [target_scale], height=0.85,
+                 facecolor=target_color, linewidth=1.2,
+                 alpha=0.3, zorder=3,
+                 label="target" if c == classes[0] else None)
+ 
+    hax.set_ylim(N - 0.5, -0.5)              # gleiche Kanalachse wie Heatmap
+    hax.set_yticks([])
+    hax.set_xlim(0, target_scale * 1.05)     # bei 3b/3c ebenfalls passend
+    # --- falls die Balken zu flach wirken, stattdessen autoskalieren: -----
+    # hax.set_xlim(0, 1.05 * max(b.max() for b in bars.values()))
+    # ---------------------------------------------------------------------
+    hax.set_xlabel(r"norm. $|E|^2$")
+    hax.axhline(det1, color="0.5", lw=0.6, ls=":", zorder=1)
+    hax.axhline(det7, color="0.5", lw=0.6, ls=":", zorder=1)
+    hax.legend(fontsize=7, loc="lower right", framealpha=0.9)
+    for s in ("top", "right"):
+        hax.spines[s].set_visible(False)
+ 
+    return fig, (ax, hax)
 
 
 def plot_mesh(mesh, ax=None, color_by=None, detectors=None,
