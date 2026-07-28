@@ -74,7 +74,7 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
     I_out = I[-1]                            # (N, B): Ausgangsintensitaeten
  
     # ---------- pro Klasse mitteln und normieren ----------
-    classes = np.unique(Y)
+    classes = np.sort(np.unique(Y))
     bars = {}
     for c in classes:
         mask = (Y == c)
@@ -132,7 +132,7 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
                  label="target" if c == classes[0] else None)
  
     hax.set_ylim(N - 0.5, -0.5)              # gleiche Kanalachse wie Heatmap
-    hax.set_xscale("log")
+    hax.set_xscale("linear")
     hax.set_yticks([])
     hax.set_xlim(0, target_scale * 1.05)     # bei 3b/3c ebenfalls passend
     # --- falls die Balken zu flach wirken, stattdessen autoskalieren: -----

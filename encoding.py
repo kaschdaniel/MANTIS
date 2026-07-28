@@ -15,7 +15,7 @@ def load_mnist(values): #values: desired numbers (in our case 7 and 1)
 
 def down_sample(image, m_side=10):
     '''
-    Returns down-sampled image by factor "image length/m" on both axis
+    Returns down-sampled image by factor "image length/m_side" on both axis
 
     Parameters
     ----------
