@@ -80,6 +80,33 @@ def confusion_matrix(y_true, y_pred_label):
     return conf_matrix
   
     
+def target_output(label, labels=[1,7], detectors=[33,66], N=100):
+    '''
+    Returns target output based on given label digit, e.g. 1 or 7
+
+    Parameters
+    ----------
+    label : TYPE
+        DESCRIPTION.
+    labels : TYPE, optional
+        DESCRIPTION. The default is [1,7].
+    detectors : TYPE, optional
+        DESCRIPTION. The default is [33,66].
+    N : int, optional
+        Number of channels. The default is 100.
+
+    Returns
+    -------
+    vector : TYPE
+        DESCRIPTION.
+
+    '''
+    vector = np.zeros(N)
+    index = int(np.argwhere(np.array(labels) == label))
+    vector[detectors[index]] = 1
+    return vector
+        
+    
 
 
 #%% Loading the dataset
@@ -206,34 +233,57 @@ thetas, phis = prop_mesh.init_random() #initializing random weights
 
 layers = prop_mesh.layer_matrices(thetas, phis)   #build transfer matrices (layers) from parameters
 
-E_out  = forward(E_X, layers)         #propagation that gives end result directly
-print(E_out)                          #format: [channels, batches]
-print(np.shape(E_out))
+# E_out  = forward(E_X, layers)         #propagation that gives end result directly
+# print(E_out)                          #format: [channels, batches]
+# print(np.shape(E_out))
 
-E_hist_in = forward_history(E_X, layers) #propagation that gives all E-fields for every layer
-#print(E_hist)                         #format: [layers, channels, batches]
-I = np.abs(E_hist_in[:,:,2])**2
-fig, _ = plot_intensity_map(I, detectors=[33,66])
-
-
-# Backward propagation
-E_in = backward(E_out*np.exp(1j*np.pi/3), layers)
-print(np.sum(np.abs(E_in)-np.abs(E_X)))
+# E_hist_in = forward_history(E_X, layers) #propagation that gives all E-fields for every layer
+# #print(E_hist)                         #format: [layers, channels, batches]
+# I = np.abs(E_hist_in[:,:,2])**2
+# fig, _ = plot_intensity_map(I, detectors=[33,66])
 
 
+# # Backward propagation
+# E_in = backward(E_out*np.exp(1j*np.pi/3), layers)
+# print(np.sum(np.abs(E_in)-np.abs(E_X)))
 
-E_hist = backward_history(E_out, layers)
-E_hist_phase = backward_history(E_out*np.exp(1j*np.pi/3), layers) 
 
-I = np.abs(E_hist_in[:,:,2] + E_hist[:,:,2])**2
-I_phase = np.abs(E_hist_in[:,:,2] + E_hist_phase[:,:,2])**2
 
-fig, _ = plot_intensity_map(I, detectors=[33,66])
-fig, _ = plot_intensity_map(I_phase, detectors=[33,66])
+# E_hist = backward_history(E_out, layers)
+# E_hist_phase = backward_history(E_out*np.exp(1j*np.pi/3), layers) 
 
-print(np.sum(I[0,:]-I_phase[0,:]))
+# I = np.abs(E_hist_in[:,:,2] + E_hist[:,:,2])**2
+# I_phase = np.abs(E_hist_in[:,:,2] + E_hist_phase[:,:,2])**2
 
-diff = I[0,:]-I_phase[0,:]
+# fig, _ = plot_intensity_map(I, detectors=[33,66])
+# fig, _ = plot_intensity_map(I_phase, detectors=[33,66])
+
+# print(np.sum(I[0,:]-I_phase[0,:]))
+
+# diff = I[0,:]-I_phase[0,:]
+
+
+# TEST FOR TRAINING
+learning_rate = 1E-5
+i=0 # 1st data sample
+
+# 1. Forward propagation
+E_out_f1 = forward_history(E_X[:,i], layers)
+I1 = np.abs(E_out_f1[:,:])**2
+fig, _ = plot_intensity_map(I1, detectors=[33,66])
+
+# 2. Calculate error vector
+E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[i]))
+
+# 3. Propagate backwards
+E_out_b1 = backward_history(E_in_b1, layers)
+I2 = np.abs(E_out_b1[:,:])**2
+fig, _ = plot_intensity_map(I2, detectors=[33,66])
+
+# 4. Calculate gradient
+gradient = - np.imag(E_out_f1 * E_out_b1)
+
+# 5. Update weights
 
 
 
