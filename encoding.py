@@ -6,7 +6,27 @@ from skimage.transform import downscale_local_mean
 from skimage.transform import resize
 from keras.datasets import mnist
 
-def load_mnist(values): #values: desired numbers (in our case 7 and 1)
+def load_mnist(values):
+    '''
+    Loads MNIST data of given digits
+
+    Parameters
+    ----------
+    values : list
+        Digits to be loaded.
+
+    Returns
+    -------
+    X_train : 3D array
+        Training images of MNIST digits.
+    y_train : 1D array
+        Labels for training data, given as presented digit (e.g. 7).
+    X_test : 3D array
+        Testing images of MNIST digits.
+    y_test : 1D array
+        Labels for testing data, given as presented digit (e.g. 7).
+
+    '''
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
     X_train, X_test = X_train[np.isin(y_train, values)], X_test[np.isin(y_test, values)]
     y_train, y_test = y_train[np.isin(y_train, values)], y_test[np.isin(y_test, values)]
@@ -37,14 +57,47 @@ def down_sample(image, m_side=10):
                  preserve_range=True)
     assert out.shape == (m_side, m_side) #assert output image is quadratic
     return out
-    #image_downsampled = downscale_local_mean(image, (factor, factor))
-    #return image_downsampled
+
 
 def reshape_and_normalize(image):
-    return image.reshape(-1).astype(np.float64) / 255 #suggested by claude instead of previous way
-    #return image.reshape(image.shape[0]*image.shape[0]).astype(np.float) / 255
+    '''
+    Returns normalized vector of image.
+
+    Parameters
+    ----------
+    image : 2D array
+        DESCRIPTION.
+
+    Returns
+    -------
+    1D array
+        Normalized vector.
+
+    '''
+    return image.reshape(-1).astype(np.float64) / 255
 
 def encode_batch(images, m_side=10, theta=1, normalize_energy=False):
+    '''
+    Reshapes, normalizes and encodes batch of images into electrical field amplitude.
+    Works for single images as well.
+
+    Parameters
+    ----------
+    images : list or 2D array of float
+        DESCRIPTION.
+    m_side : TYPE, optional
+        DESCRIPTION. The default is 10.
+    theta : TYPE, optional
+        Hyperparameter controlling the strength of the encoding. The default is 1.
+    normalize_energy : bool, optional
+        Whether the images should be normalized for total energy. The default is False.
+
+    Returns
+    -------
+    Array
+        Array of normalized amplitude-encoded electrical fields as vectors.
+
+    '''
     images = np.asarray(images)
     if images.ndim == 2:              #For the case of single or array of pictures
         images = images[None, ...]
@@ -67,9 +120,9 @@ def amplitude_encoding(image, theta=1):
     Parameters
     ----------
     image : 1D numpy array
-        vector of image to be encoded
+        Vector of image to be encoded
     theta : float
-        hyperparameter controlling the strength of the encoding
+        Hyperparameter controlling the strength of the encoding
 
     Returns
     -------
@@ -118,9 +171,9 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
     else:
         X, y = X_train, y_train
  
-    E = encode_batch(X, m_side, theta, normalize_energy)   # (B, N): Zeile = Bild
+    E = encode_batch(X, m_side, theta, normalize_energy)   # (B, N): Line corresponds to image
 
-    # consistency check auf der Bild-Achse
+    # consistency check on image axis
     assert len(E) == len(y), \
         f"Mismatch: {len(E)} fields but {len(y)} labels"
 
@@ -130,14 +183,14 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
     if number == None:
         rng = np.random.default_rng(seed)
         indices = rng.permutation(k)
-        return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
+        return E[indices].T, y[indices]        # choose on (B,N), then -> (N, number)
     elif (number > k):
         print(f"Just {k} images found. (Requested number = {number})")
-        return E.T, y                      # erst hier -> (N, k)
+        return E.T, y                      # first here -> (N, k)
     else:
-        # Case 2: more available than requested -> random subset
+        # Case 2: more images available than requested -> random subset
         rng = np.random.default_rng(seed)
         indices = rng.permutation(k)[:number]
-        return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
+        return E[indices].T, y[indices]        # choose on (B,N), then -> (N, number)
     raise ValueError("Handling of variable 'number' threw exception!")
 

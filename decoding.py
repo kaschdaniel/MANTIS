@@ -3,39 +3,39 @@ import numpy as np
 
 def detection(E):
     '''
-    
+    Calculate detected signal
 
     Parameters
     ----------
-    E : TYPE
-        DESCRIPTION.
+    E : 1D array of type complex
+        Electrical field output of chip.
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    1D array of type float
+        Measured intensity of all output ports.
 
     '''
     return np.abs(E)**2
 
 
-def determine_winner(E, det1=0, det2=-1):
+def detection_and_determine_winner(E, det1=0, det2=-1):
     '''
-    
+    Calculate power of electrical field output at detector ports
 
     Parameters
     ----------
-    E : TYPE
-        DESCRIPTION.
-    det1 : TYPE, optional
-        DESCRIPTION. The default is 0.
-    det2 : TYPE, optional
-        DESCRIPTION. The default is -1.
+    E : 1D array of type complex
+        Electrical field output of chip.
+    det1 : int, optional
+        Position of detector for 1st digit. The default is 0.
+    det2 : int, optional
+        Position of detector for 2nd digit. The default is -1.
 
     Returns
     -------
     int
-        DESCRIPTION.
+        Highest detected power, 0 for 1st detector and 1 for 2nd given detector position.
 
     '''
     I1=np.abs(E[det1])**2
@@ -149,3 +149,5 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
 
 
 LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
+
+
