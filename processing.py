@@ -1,5 +1,6 @@
 # PROCESSING
 import numpy as np
+from mesh import U
 
 #################################################################################################
 #----------------------------MZI Array Logic-----------------------------------------------------
@@ -45,8 +46,13 @@ def backward(lam_out, layers):
 
     Rueckgabe: Adjoint-Feld am Mesh-Eingang, gleiche Form wie lam_out.
     """
-    adjoint_layers = [Ml.conj().T for Ml in reversed(layers)]
-    return forward(lam_out, adjoint_layers)
+    return forward(lam_out, adjoint_layers(layers))
+
+def adjoint_layers(layers):
+    '''
+    Calculate adjoint of all matrices in layers array and reverses order.
+    '''
+    return np.array([Ml.conj().T for Ml in reversed(layers)])
 
 def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
     """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
