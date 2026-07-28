@@ -54,9 +54,16 @@ def loss_function(E, y, det1, det7):
         Efinal = E
     else:
         raise ValueError("Dimension of E faulty, ndim=2 or ndim=3 expected!")
-    I = np.abs(Efinal)**2
-    target = np.zeros(Efinal.shape[0]) #number of channels
-    target[det1][y==1]=1
-    target[det7][y==7]=1
+    I = np.abs(Efinal)**2 #shape (channel, batch)
+    scores = I[[det1, det7], :]
+    target = np.zeros_like(scores)   # (2, batch)
+    target[0, y == 1] = 1
+    target[1, y == 7] = 1
+    print(target[0])
+    print("ululi")
+    #calc difference to target1
+    print(I[det1,:])
+    diff1=np.diff(target[0], I[det1,:])
+    print(diff1)
     #Stimmt noch nicht, mach jetzt aber ne Pause
-    return np.nan
+    return 
