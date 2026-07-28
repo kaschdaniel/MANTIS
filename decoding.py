@@ -153,5 +153,5 @@ def loss_function(E, y, det1, det7, kind="mse"):
         #
     
     loss = per_samp.mean()
-    lam_out = lam_out / B                        # Mittel ueber Batch (wie loss)
-    return loss, per_samp, lam_out #returns shape()
+    lam_out = lam_out / B #for backprop.
+    return loss, per_samp, lam_out #returns shape(?, batch, (channel, batch))

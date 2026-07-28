@@ -132,6 +132,7 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
                  label="target" if c == classes[0] else None)
  
     hax.set_ylim(N - 0.5, -0.5)              # gleiche Kanalachse wie Heatmap
+    hax.set_xscale("log")
     hax.set_yticks([])
     hax.set_xlim(0, target_scale * 1.05)     # bei 3b/3c ebenfalls passend
     # --- falls die Balken zu flach wirken, stattdessen autoskalieren: -----

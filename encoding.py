@@ -3,6 +3,7 @@
 import numpy as np
 from skimage import data, color
 from skimage.transform import downscale_local_mean
+from skimage.transform import resize
 from keras.datasets import mnist
 
 def load_mnist(values): #values: desired numbers (in our case 7 and 1)
@@ -12,7 +13,7 @@ def load_mnist(values): #values: desired numbers (in our case 7 and 1)
     return X_train, y_train, X_test, y_test
 
 
-def down_sample(image, m=10):
+def down_sample(image, m_side=10):
     '''
     Returns down-sampled image by factor "image length/m" on both axis
 
@@ -29,21 +30,27 @@ def down_sample(image, m=10):
         DESCRIPTION.
 
     '''
-    factor = int(len(image)/m)+1
-    image_downsampled = downscale_local_mean(image, (factor, factor))
-    return image_downsampled
+    image = np.asarray(image, dtype=float)
+    assert image.shape[0] == image.shape[1], "Image not quadratic"
+    factor = int(len(image)/m_side)+1
+    out = resize(image, (m_side, m_side), anti_aliasing=True,
+                 preserve_range=True)
+    assert out.shape == (m_side, m_side) #assert output image is quadratic
+    return out
+    #image_downsampled = downscale_local_mean(image, (factor, factor))
+    #return image_downsampled
 
 def reshape_and_normalize(image):
     return image.reshape(-1).astype(np.float64) / 255 #suggested by claude instead of previous way
     #return image.reshape(image.shape[0]*image.shape[0]).astype(np.float) / 255
 
-def encode_batch(images, m=10, theta=1, normalize_energy=False):
+def encode_batch(images, m_side=10, theta=1, normalize_energy=False):
     images = np.asarray(images)
     if images.ndim == 2:              #For the case of single or array of pictures
         images = images[None, ...]
     fields = []
     for img in images:
-        small = down_sample(img, m=m)
+        small = down_sample(img, m_side=m_side)
         vec = reshape_and_normalize(small)
         E = amplitude_encoding(vec, theta)
         if normalize_energy:
@@ -78,7 +85,7 @@ def amplitude_encoding(image, theta=1):
     E = E * ampl_mod * theta
     return E
 
-def get_data(values, mode: str, number=None, m=10, theta=1,
+def get_data(values, mode: str, number=None, m_side=10, theta=1,
              normalize_energy=False, seed=None):
     """Load, encode and sample MNIST data.
  
@@ -111,7 +118,7 @@ def get_data(values, mode: str, number=None, m=10, theta=1,
     else:
         X, y = X_train, y_train
  
-    E = encode_batch(X, m, theta, normalize_energy)   # (B, N): Zeile = Bild
+    E = encode_batch(X, m_side, theta, normalize_energy)   # (B, N): Zeile = Bild
 
     # consistency check auf der Bild-Achse
     assert len(E) == len(y), \
@@ -121,7 +128,9 @@ def get_data(values, mode: str, number=None, m=10, theta=1,
 
     # Case 1: fewer images available than requested
     if number == None:
-        return E.T, y
+        rng = np.random.default_rng(seed)
+        indices = rng.permutation(k)
+        return E[indices].T, y[indices]        # auswählen auf (B,N), dann -> (N, number)
     elif (number > k):
         print(f"Just {k} images found. (Requested number = {number})")
         return E.T, y                      # erst hier -> (N, k)
