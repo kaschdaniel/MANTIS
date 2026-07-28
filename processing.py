@@ -34,6 +34,20 @@ def forward(E_in, layers): #for propagation through given layers, returns only l
     return E
 
 
+def backward(lam_out, layers):
+    """Adjoint-Feld rueckwaerts durch das Mesh.
+
+    lam_out : Adjoint-Quelle am Ausgang (lam_out aus loss_function),
+              (N,) oder (N, B).  NICHT zusaetzlich konjugieren -- die
+              Konjugation steckt schon in der Definition dL/dE*.
+    layers  : Layer-Matrizen in VORWAERTS-Reihenfolge, so wie
+              mesh.layer_matrices() sie liefert.
+
+    Rueckgabe: Adjoint-Feld am Mesh-Eingang, gleiche Form wie lam_out.
+    """
+    adjoint_layers = [Ml.conj().T for Ml in reversed(layers)]
+    return forward(lam_out, adjoint_layers)
+
 def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
     """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
     Rueckgabe: (L+1, N) bzw. (L+1, N, B), Eintrag l ist das Feld VOR Layer l."""
@@ -43,4 +57,15 @@ def forward_history(E_in, layers): #for propagation through given layers, return
         E = Ml @ E
         hist.append(E.copy())
     return np.array(hist)
+
+def backward_history(lam_out, layers):
+    """Wie backward(), gibt aber alle Adjoint-Felder zurueck.
+
+    Rueckgabe: (L+1, N) bzw. (L+1, N, B) mit Eintrag l = lambda_l,
+    also in DERSELBEN Indizierung wie forward_history.  Ohne das
+    Umdrehen am Ende laeuft der Index rueckwaerts und passt nicht
+    zu den Vorwaertsfeldern -- die haeufigste Fehlerquelle hier.
+    """
+    hist = forward_history(lam_out, adjoint_layers(layers))
+    return hist[::-1]
 
