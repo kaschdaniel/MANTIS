@@ -86,7 +86,7 @@ def accuracy(E, y, det1, det7):
     Returns
     -------
     float
-        Returns float of correct identifications
+        Returns proportion of correct identifications
 
     '''
     return np.mean(predict(E, det1, det7) == y)
@@ -100,20 +100,23 @@ def _detector_scores(E, y, det1, det7):
     s1, s7 : (batch,) real, detected intensity |E|^2 at each detector
     t1, t7 : (batch,) float, one-hot targets for class 1 and class 7
     """
-    #Handling E either in form (Channel, Layer, Batch) or (Channel, Batch)
+    #Handling E either in form (Layer, Channel, Batch) or (Channel, Batch)
     if E.ndim == 3:
         Efield=E[-1]
     elif E.ndim == 2:
         Efield=E
-    elif E.ndim ==1:
-        Efield=E
+    elif E.ndim == 1:
+        Efield = E[:, None]            # (N,) -> (N, 1)
     else:
-        raise ValueError("E must have ndim 2 or 3")
+        raise ValueError("E must have ndim 1, 2 or 3!")
 
-    I=detection(Efield)
-    s1, s7 = I[det1], I[det7]
+    I = detection(Efield)
+    s1, s7 = I[det1], I[det7]          # jetzt immer (batch,)
+    y = np.atleast_1d(y)
     t1 = (y == 1).astype(float)
     t7 = (y == 7).astype(float)
+    if len(t1) != Efield.shape[1]:
+        raise ValueError(f"{len(t1)} Labels, aber {Efield.shape[1]} Samples")
     return Efield, s1, s7, t1, t7
 
 
@@ -154,12 +157,10 @@ def adjoint_source(E, y, det1, det7, kind="mse_norm"):
     Gam[det7] = dL_ds7 * np.conj(Efield[det7]) / B
     return Gam
 
-
-
 # ------------------------------------------------------------ loss kinds
 # Each returns (per_sample, dL_ds1, dL_ds7), all of shape (batch,).
 
-
+LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
 def mse(s1, s7, t1, t7):
     """Squared distance of the raw detector intensities to the targets.
@@ -208,5 +209,5 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     return per_sample, soft[0] - t1, soft[1] - t7
 
 
-LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
+
 
