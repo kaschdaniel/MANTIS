@@ -263,13 +263,23 @@ layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matri
 
 # diff = I[0,:]-I_phase[0,:]
 
+values = np.array([1,7]) #figures you want from the mnist dataset
+mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
+number_t = 1000 #Sets number of samples you want to get in total
+m_side = 10 #side length (pixel) of mnist image after downsampling
+theta = 1 #mysterious hyper parameter for amplitude scaling
+norm_energy = True #Bool for if energy of encoded image should be normalized or not
+seed = None #Random seed to control random choice of number -pictures out of the available ones, 
+            #seed = None leads to random results for each iteration
+E_X_test, Y_test = get_data(values, mode, number_t, m_side, theta, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
+
+
 
 # TEST FOR TRAINING
-learning_rate = 1E-2
-j=0 # 1st data sample
+learning_rate = 1e-2
 
 for j in range(number):
-    print(j)
+    #print(j)
     # 1. Forward propagation
     E_out_f1 = forward_history(E_X[:,j], layers)
     I1 = np.abs(E_out_f1[:,:])**2
@@ -301,22 +311,15 @@ for j in range(number):
             phis[i] = phis[i] - learning_rate * gradient[2+2*i,1:-1:2]
             #thetas[i+1] = thetas[i+1] - learning_rate * gradient[i+3,1:-1:2]
             #phis[i+1] = phis[i+1] - learning_rate * gradient[i+4,1:-1:2]
+            
     
-    
+    if j % 100 == 0: 
+        E_out_test = forward(E_X_test, layers)
+        print(accuracy(E_out_test, Y_test, 33, 66))
 # Testing
 
-values = np.array([1,7]) #figures you want from the mnist dataset
-mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
-number = 1000 #Sets number of samples you want to get in total
-m_side = 10 #side length (pixel) of mnist image after downsampling
-theta = 1 #mysterious hyper parameter for amplitude scaling
-norm_energy = True #Bool for if energy of encoded image should be normalized or not
-seed = None #Random seed to control random choice of number -pictures out of the available ones, 
-            #seed = None leads to random results for each iteration
 
-E_X, Y = get_data(values, mode, number, m_side, theta, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
-E_out = forward(E_X, layers)
-print(accuracy(E_out, Y, 33, 66))
+
 
 
 #%%% Decoding
