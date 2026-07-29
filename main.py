@@ -219,7 +219,7 @@ print(f"Total number of (trainable) MZIs in the setup: {n_mzis}") #number of (tr
 plot_mesh(test_mesh, color_by=None, detectors=[0, 3], label_step=None) #function of visualize.py to show the geometry (and detectors)
 
 
-phis, thetas = test_mesh.init_random()
+thetas, phis = test_mesh.init_random() # istz jetzt korrigiert, ist in deinem Jupyter Notebook aber noch falsch
 print(f"Phis: {phis}")
 print(f"Thetas: {thetas}")
 
@@ -231,7 +231,7 @@ N=100 #number of channels (number of pixels in mnist image)
 prop_mesh = MZIMesh(N, plan_rectangular(N, N)) #creating mesh object
 thetas, phis = prop_mesh.init_random() #initializing random weights
 
-layers = prop_mesh.layer_matrices(thetas, phis)   #build transfer matrices (layers) from parameters
+layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matrices (layers) from parameters
 
 # E_out  = forward(E_X, layers)         #propagation that gives end result directly
 # print(E_out)                          #format: [channels, batches]
@@ -284,6 +284,8 @@ fig, _ = plot_intensity_map(I2, detectors=[33,66])
 gradient = - np.imag(E_out_f1 * E_out_b1)
 
 # 5. Update weights
+thetas += learning_rate * gradient
+phis += learning_rate * gradient
 
 
 

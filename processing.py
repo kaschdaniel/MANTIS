@@ -1,6 +1,6 @@
 # PROCESSING
 import numpy as np
-from mesh import U
+from mesh import U, U_theta, U_phi
 
 #################################################################################################
 #----------------------------MZI Array Logic-----------------------------------------------------
@@ -19,6 +19,24 @@ def build_single_layer(thetas, phis, pos=0):
     for i, k in enumerate(range(start, N - 1, 2)):
         M[k:k+2, k:k+2] = U(thetas[i], phis[i])
     return M
+
+def build_single_layer_separate(thetas, phis, pos=0):
+    """returns full N x N matrix of the layer of position "pos" considering 
+    the two phase shifters as separate positions --> two separate matrices
+    pos even  -> pairs (0,1),(2,3),...   -> w   MZIs
+    pos odd -> pairs (1,2),(3,4),...     -> w-1 MZIs
+    """
+    if len(thetas) != len(phis):
+        raise ValueError("Arrays must have the same length!")
+    N = 2 * len(thetas)                       
+    M_theta = np.eye(N, dtype=np.complex128)      
+    M_phi = M_theta.copy()
+    start = 0 if pos % 2 == 0 else 1
+    for i, k in enumerate(range(start, N - 1, 2)):
+        #M[k:k+2, k:k+2] = U(thetas[i], phis[i])
+        M_theta[k:k+2, k:k+2] = U_theta(thetas[i])
+        M_phi[k:k+2, k:k+2] = U_phi(phis[i])
+    return M_theta, M_phi
 
 def forward_single_layer(E_in, M): #Applies one Mesh-layer
     E_out = M@E_in
@@ -52,7 +70,7 @@ def adjoint_layers(layers):
     '''
     Calculate adjoint of all matrices in layers array and reverses order.
     '''
-    return np.array([Ml.conj().T for Ml in reversed(layers)])
+    return [Ml.conj().T for Ml in reversed(layers)]
 
 def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
     """Wie forward(), gibt aber alle Zwischenzustaende zurueck.

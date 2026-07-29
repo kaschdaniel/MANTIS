@@ -40,6 +40,14 @@ def U(theta, phi, eta=1.0):  # 2x2 Transfer-matrix of MZI: R_phi @ B @ R_theta @
     B = beamsplitter(eta)
     return phase_shift(phi) @ B @ phase_shift(theta) @ B
 
+def U_theta(theta, eta=1.0):
+    B = beamsplitter(eta)
+    return phase_shift(theta) @ B
+
+def U_phi(phi, eta=1.0):
+    B = beamsplitter(eta)
+    return phase_shift(phi) @ B
+
 #################################################################################################
 # ----------------------------Bauplaene (Architekturen)------------------------------------------
 #################################################################################################
@@ -263,6 +271,40 @@ class MZIMesh:
                 for i, k in enumerate(data):
                     M[k:k+2, k:k+2] = U(th[i], ph[i], eta_bs)
             mats.append(fiber_amp * M)   # Fiber-Verlust: getrennter Diagonalfaktor
+        return mats
+    
+    # -------------------------------------------------- Matrizen
+    def layer_matrices_separate(self, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
+        """Liste der N x N Matrizen, eine pro Layer.
+
+        eta_bs      : Leistungstransmission je Strahlteiler (BS-Verlust).
+                      1.0 -> verlustfrei.
+        alpha_fiber : Wellenleiterverlust in dB pro Layer-Abschnitt.
+                      0.0 -> verlustfrei. Wird als diagonaler Faktor an
+                      JEDES Layer multipliziert (betrifft auch Kanaele
+                      ohne MZI), getrennt vom BS-Verlust.
+
+        Bewusst NICHT nur das Produkt: die adjungierte Backpropagation
+        braucht die Felder an jedem einzelnen Layer, und die Feld-
+        visualisierung fuer den Bericht ebenfalls.
+        """
+        N = self.N
+        # dB (Leistung) -> Amplitudenfaktor: 10^(-alpha/20)
+        fiber_amp = 10.0 ** (-alpha_fiber / 20.0)
+        mats = []
+        for (kind, data), th, ph in zip(self.plan, thetas, phis):
+            if kind == "perm":
+                M_theta = np.eye(N, dtype=np.complex128)[data]
+                M_phi = M_theta.copy()
+            else:
+                M_theta = np.eye(N, dtype=np.complex128)
+                M_phi = M_theta.copy()
+                for i, k in enumerate(data):
+                    #M[k:k+2, k:k+2] = U(th[i], ph[i], eta_bs)
+                    M_theta[k:k+2, k:k+2] = U_theta(th[i], eta_bs)
+                    M_phi[k:k+2, k:k+2] = U_phi(ph[i], eta_bs)
+            mats.append(fiber_amp * M_theta)   # Fiber-Verlust: getrennter Diagonalfaktor
+            mats.append(fiber_amp * M_phi)
         return mats
 
     # -------------------------------------------------- Propagation
