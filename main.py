@@ -279,6 +279,11 @@ E_X_test, Y_test = get_data(values, mode, number_t, m_side, theta, norm_energy, 
 learning_rate = 1e-2
 
 for j in range(number):
+    
+    if j % 100 == 0: 
+        E_out_test = forward(E_X_test, layers)
+        print(accuracy(E_out_test, Y_test, 33, 66))
+    
     #print(j)
     # 1. Forward propagation
     E_out_f1 = forward_history(E_X[:,j], layers)
@@ -298,8 +303,13 @@ for j in range(number):
     
     # 4. Calculate gradient
     gradient = -2*np.imag(E_out_f1 * E_out_b1)
+    # grad_th, grad_ph = gradient(E_out_f1, E_out_b1, plan_rectangular(N, N))
     
     # 5. Update weights
+    # for k in range(len(thetas)):
+    #     for p in range(len(thetas[k])):
+    #         thetas[k][p] -= grad_th[k][p] * learning_rate
+    #         phis[k][p] -= grad_ph[k][p] * learning_rate
     
     for i in range(len(thetas)):
         #print(i)
@@ -309,24 +319,22 @@ for j in range(number):
         else:
             thetas[i] = thetas[i] - learning_rate * gradient[1+2*i,1:-1:2]
             phis[i] = phis[i] - learning_rate * gradient[2+2*i,1:-1:2]
-            #thetas[i+1] = thetas[i+1] - learning_rate * gradient[i+3,1:-1:2]
-            #phis[i+1] = phis[i+1] - learning_rate * gradient[i+4,1:-1:2]
-            
-    
-    if j % 100 == 0: 
-        E_out_test = forward(E_X_test, layers)
-        print(accuracy(E_out_test, Y_test, 33, 66))
-# Testing
+    layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matrices (layers) from parameters
 
+    
+    
+# Testing
+E_out_test = forward(E_X_test, layers)
+print(accuracy(E_out_test, Y_test, 33, 66))
 
 
 
 
 #%%% Decoding
 
-detected_signal = detection(E)
-y_pred = detection_and_determine_winner(detected_signal)
-print(y_pred)
+# detected_signal = detection(E)
+# y_pred = detection_and_determine_winner(detected_signal)
+# print(y_pred)
     
 #def main():    
 

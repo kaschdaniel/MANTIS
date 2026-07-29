@@ -88,3 +88,8 @@ def gradient(fh, bh, plan):
             gp[i] = -2*np.imag(np.sum(bh[2*l+2][k] * fh[2*l+2][k]))
         grad_th.append(gt); grad_ph.append(gp)
     return grad_th, grad_ph
+
+
+
+
+
