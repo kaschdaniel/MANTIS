@@ -160,7 +160,6 @@ def adjoint_source(E, y, det1, det7, kind="mse_norm"):
 # ------------------------------------------------------------ loss kinds
 # Each returns (per_sample, dL_ds1, dL_ds7), all of shape (batch,).
 
-LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
 def mse(s1, s7, t1, t7):
     """Squared distance of the raw detector intensities to the targets.
@@ -208,6 +207,7 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     # standard result: dL/dz = softmax - target
     return per_sample, soft[0] - t1, soft[1] - t7
 
+LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
 
 

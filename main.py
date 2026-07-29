@@ -169,8 +169,8 @@ X_test_vec = np.array([reshape_and_normalize(X) for X in X_test_ds])
 
 #%% Linear regression as baseline
 
-theta, y_predict, accuracy = linear_regression(X_train_vec, y_train, X_test_vec, y_test)
-print(accuracy)
+theta, y_predict, acc = linear_regression(X_train_vec, y_train, X_test_vec, y_test)
+print(acc)
 
 
 
@@ -185,8 +185,8 @@ print(np.shape(E))
 #%%% Processing
 
 values = np.array([1,7]) #figures you want from the mnist dataset
-mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
-number = 110 #Sets number of samples you want to get in total
+mode = "Training" #Selects if you want the test-set ("Testing") or the training-set ("Training")
+number = 10000 #Sets number of samples you want to get in total
 m_side = 10 #side length (pixel) of mnist image after downsampling
 theta = 1 #mysterious hyper parameter for amplitude scaling
 norm_energy = True #Bool for if energy of encoded image should be normalized or not
@@ -268,23 +268,23 @@ layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matri
 learning_rate = 1E-2
 j=0 # 1st data sample
 
-for j in range(100):
+for j in range(number):
     print(j)
     # 1. Forward propagation
     E_out_f1 = forward_history(E_X[:,j], layers)
     I1 = np.abs(E_out_f1[:,:])**2
-    if j%10 ==0:
-        fig, _ = plot_intensity_map(I1, detectors=[33,66])
+    # if j%50 ==0:
+    #     fig, _ = plot_intensity_map(I1, detectors=[33,66])
     
     # 2. Calculate error vector
     #E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[j]))
-    E_in_b1 = adjoint_source(E_out_f1[-1], Y[j], 33, 66, kind="mse_norm")
+    E_in_b1 = adjoint_source(E_out_f1[-1], Y[j], 33, 66, kind="mse_norm")[:,0]
     
     # 3. Propagate backwards
     E_out_b1 = backward_history(E_in_b1, layers)
     I2 = np.abs(E_out_b1[:,:])**2
-    if j%10 ==0:
-        fig, _ = plot_intensity_map(I2, detectors=[33,66])
+    # if j%50 ==0:
+    #     fig, _ = plot_intensity_map(I2, detectors=[33,66])
     
     # 4. Calculate gradient
     gradient = -2*np.imag(E_out_f1 * E_out_b1)
@@ -303,7 +303,20 @@ for j in range(100):
             #phis[i+1] = phis[i+1] - learning_rate * gradient[i+4,1:-1:2]
     
     
+# Testing
 
+values = np.array([1,7]) #figures you want from the mnist dataset
+mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
+number = 1000 #Sets number of samples you want to get in total
+m_side = 10 #side length (pixel) of mnist image after downsampling
+theta = 1 #mysterious hyper parameter for amplitude scaling
+norm_energy = True #Bool for if energy of encoded image should be normalized or not
+seed = None #Random seed to control random choice of number -pictures out of the available ones, 
+            #seed = None leads to random results for each iteration
+
+E_X, Y = get_data(values, mode, number, m_side, theta, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
+E_out = forward(E_X, layers)
+print(accuracy(E_out, Y, 33, 66))
 
 
 #%%% Decoding
