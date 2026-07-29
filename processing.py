@@ -31,9 +31,16 @@ def backward(lam_out, layers):
     return forward(lam_out, adjoint_layers(layers))
 
 def adjoint_layers(layers):
-    '''
-    Calculate adjoint of all matrices in layers array and reverses order.
-    '''
+    """Transponiert (NICHT hermitesch!) und umgekehrte Reihenfolge.
+
+    Hughes-Konvention: das Adjoint-Feld wird als Gamma = conj(dL/dE*)
+    definiert und mit M^T propagiert.  Grund: ein reziprokes optisches
+    System, rueckwaerts durchleuchtet, realisiert physikalisch M^T.
+    Wegen  M^T conj(x) = conj(M^H x)  ist das aequivalent zu
+    lambda = dL/dE* mit M^H -- ABER die beiden Konventionen duerfen
+    nicht gemischt werden.  Der Fehlervektor MUSS also konjugiert
+    hereinkommen (siehe adjoint_source in decoding.py).
+    """
     return [Ml.T for Ml in reversed(layers)]
 
 def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
