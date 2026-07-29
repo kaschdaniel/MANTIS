@@ -277,7 +277,8 @@ for j in range(100):
         fig, _ = plot_intensity_map(I1, detectors=[33,66])
     
     # 2. Calculate error vector
-    E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[j]))
+    #E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[j]))
+    E_in_b1 = adjoint_source(E_out_f1[-1], Y[j], 33, 66, kind="mse_norm")
     
     # 3. Propagate backwards
     E_out_b1 = backward_history(E_in_b1, layers)
