@@ -2,7 +2,7 @@ from encoding import *
 from processing import *
 from decoding import *
 from visualize import *
-from trainer import *
+from Trainer import *
 from mesh import *
 
 import numpy as np
@@ -220,7 +220,7 @@ print(f"Total number of (trainable) MZIs in the setup: {n_mzis}") #number of (tr
 plot_mesh(test_mesh, color_by=None, detectors=[0, 3], label_step=None) #function of visualize.py to show the geometry (and detectors)
 
 
-thetas, phis = test_mesh.init_random() # istz jetzt korrigiert, ist in deinem Jupyter Notebook aber noch falsch
+thetas, phis = test_mesh.init_random() # ist jetzt korrigiert, ist in deinem Jupyter Notebook aber noch falsch
 print(f"Phis: {phis}")
 print(f"Thetas: {thetas}")
 
@@ -265,30 +265,43 @@ layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matri
 
 
 # TEST FOR TRAINING
-learning_rate = 1E-5
-i=0 # 1st data sample
+learning_rate = 1E-2
+j=0 # 1st data sample
 
-# 1. Forward propagation
-E_out_f1 = forward_history(E_X[:,i], layers)
-I1 = np.abs(E_out_f1[:,:])**2
-fig, _ = plot_intensity_map(I1, detectors=[33,66])
-
-# 2. Calculate error vector
-E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[i]))
-
-# 3. Propagate backwards
-E_out_b1 = backward_history(E_in_b1, layers)
-I2 = np.abs(E_out_b1[:,:])**2
-fig, _ = plot_intensity_map(I2, detectors=[33,66])
-
-# 4. Calculate gradient
-gradient = - np.imag(E_out_f1 * E_out_b1)
-
-# 5. Update weights
-thetas += learning_rate * gradient
-phis += learning_rate * gradient
-
-
+for j in range(100):
+    print(j)
+    # 1. Forward propagation
+    E_out_f1 = forward_history(E_X[:,j], layers)
+    I1 = np.abs(E_out_f1[:,:])**2
+    if j%10 ==0:
+        fig, _ = plot_intensity_map(I1, detectors=[33,66])
+    
+    # 2. Calculate error vector
+    E_in_b1 = np.conj(E_out_f1[-1] - target_output(Y[j]))
+    
+    # 3. Propagate backwards
+    E_out_b1 = backward_history(E_in_b1, layers)
+    I2 = np.abs(E_out_b1[:,:])**2
+    if j%10 ==0:
+        fig, _ = plot_intensity_map(I2, detectors=[33,66])
+    
+    # 4. Calculate gradient
+    gradient = -2*np.imag(E_out_f1 * E_out_b1)
+    
+    # 5. Update weights
+    
+    for i in range(len(thetas)):
+        #print(i)
+        if i%2 == 0:
+            thetas[i] = thetas[i] - learning_rate * gradient[1+2*i,::2]
+            phis[i] = phis[i] - learning_rate * gradient[2+2*i,::2]
+        else:
+            thetas[i] = thetas[i] - learning_rate * gradient[1+2*i,1:-1:2]
+            phis[i] = phis[i] - learning_rate * gradient[2+2*i,1:-1:2]
+            #thetas[i+1] = thetas[i+1] - learning_rate * gradient[i+3,1:-1:2]
+            #phis[i+1] = phis[i+1] - learning_rate * gradient[i+4,1:-1:2]
+    
+    
 
 
 
@@ -304,48 +317,48 @@ print(y_pred)
 # if __name__ == "__main__":
 #     main()
 
-#%%%
-# ----------------------------------------------------------------------
-# 1. Daten vorbereiten: Train / Val / Test getrennt
-# ----------------------------------------------------------------------
-# get_data liefert (N, k) und Labels. Encoding-Parameter wie gehabt.
-E_train, y_train = get_data(values, "Training", number=1400, m_side=10,
-                            theta=1, normalize_energy=True, seed=0)
-E_pool,  y_pool  = get_data(values, "Testing",  number=None,  m_side=10,
-                            theta=1, normalize_energy=True, seed=0)
+# #%%%
+# # ----------------------------------------------------------------------
+# # 1. Daten vorbereiten: Train / Val / Test getrennt
+# # ----------------------------------------------------------------------
+# # get_data liefert (N, k) und Labels. Encoding-Parameter wie gehabt.
+# E_train, y_train = get_data(values, "Training", number=1400, m_side=10,
+#                             theta=1, normalize_energy=True, seed=0)
+# E_pool,  y_pool  = get_data(values, "Testing",  number=None,  m_side=10,
+#                             theta=1, normalize_energy=True, seed=0)
 
-# Testpool in Validierung und Test aufteilen (einmalig, fester Seed)
-rng = np.random.default_rng(0)
-perm = rng.permutation(E_pool.shape[1])
-half = len(perm) // 2
-val_idx, test_idx = perm[:half], perm[half:]
-E_val,  y_val  = E_pool[:, val_idx],  y_pool[val_idx]
-E_test, y_test = E_pool[:, test_idx], y_pool[test_idx]
+# # Testpool in Validierung und Test aufteilen (einmalig, fester Seed)
+# rng = np.random.default_rng(0)
+# perm = rng.permutation(E_pool.shape[1])
+# half = len(perm) // 2
+# val_idx, test_idx = perm[:half], perm[half:]
+# E_val,  y_val  = E_pool[:, val_idx],  y_pool[val_idx]
+# E_test, y_test = E_pool[:, test_idx], y_pool[test_idx]
 
-# ----------------------------------------------------------------------
-# 2. Ein einzelner Trainingslauf
-# ----------------------------------------------------------------------
-N = 100
-mesh = MZIMesh(N, plan_rectangular(N, N))
+# # ----------------------------------------------------------------------
+# # 2. Ein einzelner Trainingslauf
+# # ----------------------------------------------------------------------
+# N = 100
+# mesh = MZIMesh(N, plan_rectangular(N, N))
 
-cfg = TrainConfig(
-    loss_kind="mse_norm",
-    learning_rate=1e-2,
-    detectors=(33, 66),
-    init="haar",
-    seed=0,
-)
+# cfg = TrainConfig(
+#     loss_kind="mse_norm",
+#     learning_rate=1e-2,
+#     detectors=(33, 66),
+#     init="haar",
+#     seed=0,
+# )
 
-trainer = Trainer(mesh, cfg)
-history = trainer.fit(E_train, y_train, E_val, y_val)
+# trainer = Trainer(mesh, cfg)
+# history = trainer.fit(E_train, y_train, E_val, y_val)
 
-# Test genau EINMAL, mit den besten (nicht den letzten) Parametern
-test_loss, test_acc = trainer.evaluate(E_test, y_test)
-print(f"Val acc {trainer.best['val_acc']:.3f} | "
-      f"Test acc {test_acc:.3f} | "
-      f"stopped at epoch {trainer.best['epoch']} | "
-      f"{trainer.train_time:.1f}s")
+# # Test genau EINMAL, mit den besten (nicht den letzten) Parametern
+# test_loss, test_acc = trainer.evaluate(E_test, y_test)
+# print(f"Val acc {trainer.best['val_acc']:.3f} | "
+#       f"Test acc {test_acc:.3f} | "
+#       f"stopped at epoch {trainer.best['epoch']} | "
+#       f"{trainer.train_time:.1f}s")
 
-# Lernkurve fürs Protokoll
-fig, _ = plot_learning_curves(history)   # train_loss, val_loss, val_acc
-# %%
+# # Lernkurve fürs Protokoll
+# fig, _ = plot_learning_curves(history)   # train_loss, val_loss, val_acc
+# # %%
