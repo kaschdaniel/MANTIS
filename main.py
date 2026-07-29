@@ -2,6 +2,7 @@ from encoding import *
 from processing import *
 from decoding import *
 from visualize import *
+from trainer import *
 from mesh import *
 
 import numpy as np
@@ -302,3 +303,49 @@ print(y_pred)
 
 # if __name__ == "__main__":
 #     main()
+
+#%%%
+# ----------------------------------------------------------------------
+# 1. Daten vorbereiten: Train / Val / Test getrennt
+# ----------------------------------------------------------------------
+# get_data liefert (N, k) und Labels. Encoding-Parameter wie gehabt.
+E_train, y_train = get_data(values, "Training", number=1400, m_side=10,
+                            theta=1, normalize_energy=True, seed=0)
+E_pool,  y_pool  = get_data(values, "Testing",  number=None,  m_side=10,
+                            theta=1, normalize_energy=True, seed=0)
+
+# Testpool in Validierung und Test aufteilen (einmalig, fester Seed)
+rng = np.random.default_rng(0)
+perm = rng.permutation(E_pool.shape[1])
+half = len(perm) // 2
+val_idx, test_idx = perm[:half], perm[half:]
+E_val,  y_val  = E_pool[:, val_idx],  y_pool[val_idx]
+E_test, y_test = E_pool[:, test_idx], y_pool[test_idx]
+
+# ----------------------------------------------------------------------
+# 2. Ein einzelner Trainingslauf
+# ----------------------------------------------------------------------
+N = 100
+mesh = MZIMesh(N, plan_rectangular(N, N))
+
+cfg = TrainConfig(
+    loss_kind="mse_norm",
+    learning_rate=1e-2,
+    detectors=(33, 66),
+    init="haar",
+    seed=0,
+)
+
+trainer = Trainer(mesh, cfg)
+history = trainer.fit(E_train, y_train, E_val, y_val)
+
+# Test genau EINMAL, mit den besten (nicht den letzten) Parametern
+test_loss, test_acc = trainer.evaluate(E_test, y_test)
+print(f"Val acc {trainer.best['val_acc']:.3f} | "
+      f"Test acc {test_acc:.3f} | "
+      f"stopped at epoch {trainer.best['epoch']} | "
+      f"{trainer.train_time:.1f}s")
+
+# Lernkurve fürs Protokoll
+fig, _ = plot_learning_curves(history)   # train_loss, val_loss, val_acc
+# %%
