@@ -46,6 +46,51 @@ def detection_and_determine_winner(E, det1=0, det2=-1):
     else:
         return 1
 
+def predict(E, det1=0, det7=-1):
+    '''
+    Returns winner following >>winner takes it all<< comparing detectors of index det1 and det7
+
+    Parameters
+    ----------
+    E : (channel, batch) or (L+1, channel, batch) complex
+        (Batch of) Electrical field output of chip.
+    det1 : int, optional
+        Position of detector for 1st digit. The default is 0.
+    det2 : int, optional
+        Position of detector for 2nd digit. The default is -1.
+
+    Returns
+    -------
+    1D ndarray
+        Labels of detectors with highest detected power, 1 for detector 1 and 7 for detector 7.
+
+    '''
+    Efield = E[-1] if E.ndim == 3 else E
+    I = detection(Efield)
+    return np.where(I[det1] >= I[det7], 1, 7)
+
+def accuracy(E, y, det1, det7):
+    '''
+    Returns accuracy for evaluated outcome of given samples E, y
+
+    Parameters
+    ----------
+    E : (channel, batch) or (L+1, channel, batch) complex
+        (Batch of) Electrical field output of chip.
+    y : (batch)
+    det1 : int, optional
+        Position of detector for 1st digit. The default is 0.
+    det2 : int, optional
+        Position of detector for 2nd digit. The default is -1.
+
+    Returns
+    -------
+    float
+        Returns float of correct identifications
+
+    '''
+    return np.mean(predict(E, det1, det7) == y)
+
 def _detector_scores(E, y, det1, det7):
     """Extract detector intensities and one-hot targets.
 
@@ -63,12 +108,11 @@ def _detector_scores(E, y, det1, det7):
     else:
         raise ValueError("E must have ndim 2 or 3")
 
-    I=detection(E)
+    I=detection(Efield)
     s1, s7 = I[det1], I[det7]
     t1 = (y == 1).astype(float)
     t7 = (y == 7).astype(float)
     return Efield, s1, s7, t1, t7
-
 
 
 def loss_function(E, y, det1, det7, kind="mse"):
@@ -93,10 +137,25 @@ def loss_function(E, y, det1, det7, kind="mse"):
     return per_sample.mean(), per_sample #returns scalar (average of loss over all samples), (loss per channel, per batch -> size (channel, batch))
 
 
-    
+def adjoint_source(E, y, det1, det7, kind="mse_norm"):
+    """Gamma_L: Startfeld des Rueckwaertspasses (Hughes-Konvention).
+
+    Nur die beiden Detektorkanaele sind ungleich null.
+    Gamma_L[d_i] = (dL/ds_i) * conj(E_L[d_i])
+    Das conj ist die Hughes-Konvention -- passt zu adjoint_layers mit .T.
+    """
+    Efield, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7)
+    _, dL_ds1, dL_ds7 = LOSS_KINDS[kind](s1, s7, t1, t7)
+    B = Efield.shape[1] if Efield.ndim == 2 else 1
+    Gam = np.zeros_like(Efield)
+    Gam[det1] = dL_ds1 * np.conj(Efield[det1]) / B
+    Gam[det7] = dL_ds7 * np.conj(Efield[det7]) / B
+    return Gam
 
 # ------------------------------------------------------------ loss kinds
 # Each returns (per_sample, dL_ds1, dL_ds7), all of shape (batch,).
+
+LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
 def mse(s1, s7, t1, t7):
     """Squared distance of the raw detector intensities to the targets.
@@ -145,6 +204,5 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     return per_sample, soft[0] - t1, soft[1] - t7
 
 
-LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
 

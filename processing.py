@@ -6,42 +6,6 @@ from mesh import U, U_theta, U_phi
 #----------------------------MZI Array Logic-----------------------------------------------------
 #################################################################################################
 
-def build_single_layer(thetas, phis, pos=0):
-    """returns full N x N matrix of the layer of position "pos"
-    pos even  -> pairs (0,1),(2,3),...   -> w   MZIs
-    pos odd -> pairs (1,2),(3,4),...     -> w-1 MZIs
-    """
-    if len(thetas) != len(phis):
-        raise ValueError("Arrays must have the same length!")
-    N = 2 * len(thetas)                       
-    M = np.eye(N, dtype=np.complex128)        
-    start = 0 if pos % 2 == 0 else 1
-    for i, k in enumerate(range(start, N - 1, 2)):
-        M[k:k+2, k:k+2] = U(thetas[i], phis[i])
-    return M
-
-def build_single_layer_separate(thetas, phis, pos=0):
-    """returns full N x N matrix of the layer of position "pos" considering 
-    the two phase shifters as separate positions --> two separate matrices
-    pos even  -> pairs (0,1),(2,3),...   -> w   MZIs
-    pos odd -> pairs (1,2),(3,4),...     -> w-1 MZIs
-    """
-    if len(thetas) != len(phis):
-        raise ValueError("Arrays must have the same length!")
-    N = 2 * len(thetas)                       
-    M_theta = np.eye(N, dtype=np.complex128)      
-    M_phi = M_theta.copy()
-    start = 0 if pos % 2 == 0 else 1
-    for i, k in enumerate(range(start, N - 1, 2)):
-        #M[k:k+2, k:k+2] = U(thetas[i], phis[i])
-        M_theta[k:k+2, k:k+2] = U_theta(thetas[i])
-        M_phi[k:k+2, k:k+2] = U_phi(phis[i])
-    return M_theta, M_phi
-
-def forward_single_layer(E_in, M): #Applies one Mesh-layer
-    E_out = M@E_in
-    return E_out
-
 def forward(E_in, layers): #for propagation through given layers, returns only last E-Values
     """E_in: (N,) fuer ein Sample oder (N, B) fuer einen Batch.
     layers: Liste der N x N Layer-Matrizen (aus mesh.layer_matrices()).
@@ -67,10 +31,17 @@ def backward(lam_out, layers):
     return forward(lam_out, adjoint_layers(layers))
 
 def adjoint_layers(layers):
-    '''
-    Calculate adjoint of all matrices in layers array and reverses order.
-    '''
-    return [Ml.conj().T for Ml in reversed(layers)]
+    """Transponiert (NICHT hermitesch!) und umgekehrte Reihenfolge.
+
+    Hughes-Konvention: das Adjoint-Feld wird als Gamma = conj(dL/dE*)
+    definiert und mit M^T propagiert.  Grund: ein reziprokes optisches
+    System, rueckwaerts durchleuchtet, realisiert physikalisch M^T.
+    Wegen  M^T conj(x) = conj(M^H x)  ist das aequivalent zu
+    lambda = dL/dE* mit M^H -- ABER die beiden Konventionen duerfen
+    nicht gemischt werden.  Der Fehlervektor MUSS also konjugiert
+    hereinkommen (siehe adjoint_source in decoding.py).
+    """
+    return [Ml.T for Ml in reversed(layers)]
 
 def forward_history(E_in, layers): #for propagation through given layers, returns all E-Values after each layer
     """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
@@ -93,3 +64,27 @@ def backward_history(lam_out, layers):
     hist = forward_history(lam_out, adjoint_layers(layers))
     return hist[::-1]
 
+def gradient(fh, bh, plan):
+    """Gradienten aller theta und phi aus Vorwaerts- und Adjoint-Historie.
+
+    fh, bh : Historien aus forward_history / backward_history, gebaut mit
+             layer_matrices_separate -> Laenge 2L+1.
+             Position 2l+1 = nach dem theta-Shifter von Layer l
+             Position 2l+2 = nach dem phi-Shifter   von Layer l
+    plan   : mesh.plan
+
+    Rueckgabe: (grad_thetas, grad_phis), gleiche Struktur wie thetas/phis.
+    Batch (N,B) wird ueber die Sample-Achse summiert.
+    """
+    grad_th, grad_ph = [], []
+    for l, (kind, ks) in enumerate(plan):
+        if kind != "mzi":
+            grad_th.append(np.zeros(0)); grad_ph.append(np.zeros(0))
+            continue
+        gt = np.zeros(len(ks)); gp = np.zeros(len(ks))
+        for i, k in enumerate(ks):
+            # phase_shift wirkt auf den OBEREN Mode -> nur Kanal k traegt bei
+            gt[i] = -2*np.imag(np.sum(bh[2*l+1][k] * fh[2*l+1][k]))
+            gp[i] = -2*np.imag(np.sum(bh[2*l+2][k] * fh[2*l+2][k]))
+        grad_th.append(gt); grad_ph.append(gp)
+    return grad_th, grad_ph
