@@ -16,7 +16,7 @@ class TrainConfig:
     encoding: str = "amplitude"      # "amplitude" | "phase"
 
     # --- readout ---
-    detectors: tuple | None = None   # None -> thirds of N, see __post_init__
+    detectors: tuple | None = None   # None -> Det 1 @  1/3*N, Det 2 @ 2/3*N
 
     # --- optimization ---
     loss_kind: str = "mse_norm"
