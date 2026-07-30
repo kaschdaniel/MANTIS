@@ -48,6 +48,6 @@ def linear_regression(X_train, y_train, X_test, y_test):
     y_pred = theta[0] + np.sum(theta[1:] * X_test, axis = 1)
     y_pred_label = (y_pred >= 0.5).astype(np.float64)
 
-    conf_matrix, _ = confusion_matrix(y_test, y_pred_label, classes=(0, 1))
+    conf_matrix = confusion_matrix(y_test, y_pred_label, classes=(0, 1))
     accuracy_val = accuracy(conf_matrix)
     return theta, y_pred, accuracy_val, conf_matrix

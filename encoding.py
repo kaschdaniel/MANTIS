@@ -76,7 +76,7 @@ def reshape_and_normalize(image):
     '''
     return image.reshape(-1).astype(np.float64) / 255
 
-def encode_batch(images, m_side=10, theta=1, normalize_energy=False):
+def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False):
     '''
     Reshapes, normalizes and encodes batch of images into electrical field amplitude.
     Works for single images as well.
@@ -105,7 +105,7 @@ def encode_batch(images, m_side=10, theta=1, normalize_energy=False):
     for img in images:
         small = down_sample(img, m_side=m_side)
         vec = reshape_and_normalize(small)
-        E = amplitude_encoding(vec, theta)
+        E = amplitude_encoding(vec, theta_enc)
         if normalize_energy:
             nrm = np.linalg.norm(E)
             if nrm > 0:
@@ -113,7 +113,7 @@ def encode_batch(images, m_side=10, theta=1, normalize_energy=False):
         fields.append(E)
     return np.array(fields)
 
-def amplitude_encoding(image, theta=1):
+def amplitude_encoding(image, theta_enc=1):
     '''
     Encode image information in amplitude of electric field
 
@@ -135,10 +135,10 @@ def amplitude_encoding(image, theta=1):
     
     E = np.ones_like(ampl_mod, dtype = complex)
     # Add amplitude modulation
-    E = E * ampl_mod * theta
+    E = E * ampl_mod * theta_enc
     return E
 
-def get_data(values, mode: str, number=None, m_side=10, theta=1,
+def get_data(values, mode: str, number=None, m_side=10, theta_end=1,
              normalize_energy=False, seed=None):
     """Load, encode and sample MNIST data.
  
@@ -152,7 +152,7 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
         Amount of data samples requested.
     m : int
         New edge size after down-sampling (pixels).
-    theta : float
+    theta_enc : float
         Hyperparameter (amplitude factor).
     normalize_energy : bool
         Whether each field is normalized to unit energy.
@@ -171,7 +171,7 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
     else:
         X, y = X_train, y_train
  
-    E = encode_batch(X, m_side, theta, normalize_energy)   # (B, N): Line corresponds to image
+    E = encode_batch(X, m_side, theta_enc, normalize_energy)   # (B, N): Line corresponds to image
 
     # consistency check on image axis
     assert len(E) == len(y), \
@@ -180,7 +180,7 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
     k = len(y) #number of samples
 
     # Case 1: fewer images available than requested
-    if number == None:
+    if number is None:
         rng = np.random.default_rng(seed)
         indices = rng.permutation(k)
         return E[indices].T, y[indices]        # choose on (B,N), then -> (N, number)
