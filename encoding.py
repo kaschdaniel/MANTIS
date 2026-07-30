@@ -147,28 +147,30 @@ def phase_encoding(image, theta_enc=1):
     """Encode pixel values in the phase, constant amplitude."""
     return np.exp(1j * theta_enc * np.pi * image)
 
-def _balanced_indices(y, values, number, rng):
+def _balanced_indices(y, values, number):
     '''
-    Indices of an equal number of samples per class, shuffled.
+    Positions of an equal number of samples per class.
+
+    The pool is expected to be shuffled already, so taking the first n of
+    each class is a random draw and no further shuffling is needed here.
 
     Parameters
     ----------
     y : 1D array
-        Labels of the full pool.
+        Labels of the (already shuffled) pool.
     values : sequence
         Class values to balance over, e.g. (1, 7).
     number : int or None
-        Total number of samples wanted across all classes. None -> use as
-        many as the smallest class allows.
-    rng : np.random.Generator
+        Total number of samples wanted across all classes. None -> as many
+        as the smallest class allows.
 
     Returns
     -------
     1D array of int
-        Positions into y, class-balanced and shuffled.
+        Positions into y, grouped by class.
     '''
     per_class = [np.flatnonzero(y == v) for v in values]
-    avail = min(len(idx) for idx in per_class)      # limited by smallest class
+    avail = min(len(idx) for idx in per_class)          # smallest class caps it
 
     if number is None:
         n_each = avail
@@ -178,66 +180,105 @@ def _balanced_indices(y, values, number, rng):
             print(f"Only {avail} samples per class available "
                   f"({len(values)*avail} total, requested {number}).")
             n_each = avail
+    return np.concatenate([idx[:n_each] for idx in per_class])
 
-    picked = np.concatenate([rng.permutation(idx)[:n_each] for idx in per_class])
-    return rng.permutation(picked)   # mix classes, otherwise minibatches
-                                     # would each contain only one class
 
-def get_data(values, mode: str, number=None, m_side=10, theta_enc=1,
-             normalize_energy=False, seed=None, balanced=True, verbose=True):
-    """Load, encode and sample MNIST data.
+def split(X, y, values, split_ratio=0.8, rng=None):
+    '''
+    Split a data set into training and testing parts, balanced per class.
+
+    The split is applied within each class separately, so both parts keep
+    the class balance of the input. Assumes X, y are already shuffled.
+
+    Parameters
+    ----------
+    X, y : arrays
+        Images and labels, first axis = sample.
+    values : sequence
+        Class values present in y.
+    split_ratio : float
+        Fraction going to the training part, e.g. 0.8 for a 4:1 ratio.
+    rng : np.random.Generator or None
+        Used only to mix the classes again after splitting.
+
+    Returns
+    -------
+    X_train, y_train, X_test, y_test
+    '''
+    rng = np.random.default_rng() if rng is None else rng
+    train_i, test_i = [], []
+    for v in values:
+        idx = np.flatnonzero(y == v)
+        cut = int(round(split_ratio * len(idx)))
+        train_i.append(idx[:cut])
+        test_i.append(idx[cut:])
+    # mix the classes, otherwise minibatches would be single-class
+    train_i = rng.permutation(np.concatenate(train_i))
+    test_i = rng.permutation(np.concatenate(test_i))
+    return X[train_i], y[train_i], X[test_i], y[test_i]
+
+
+def get_data(values, number=None, m_side=10, theta_enc=1,
+             normalize_energy=False, seed=None, balanced=True,
+             split_ratio=0.8, verbose=True):
+    """Load, sample, split and encode MNIST data.
+
+    Only MNIST's own training split is used as the pool; its test split is
+    discarded. Training and testing data are cut from the same `number`
+    samples, as specified for the project.
 
     Parameters
     ----------
     values : array-like of int
         Wanted MNIST classes, e.g. np.array([1, 7]).
-    mode : str
-        "Testing" or "Training".
     number : int or None
-        Total number of samples requested across all classes. With
-        balanced=True this is split evenly, so the effective count is
-        len(values) * (number // len(values)). None -> take as many as
-        possible.
+        Total sample count across all classes. With balanced=True this is
+        divided evenly, so the effective count is
+        len(values) * (number // len(values)). None -> as many as possible.
     m_side : int
-        New edge size after down-sampling (pixels).
+        Edge size after down-sampling, giving N = m_side**2 channels.
     theta_enc : float
         Hyperparameter (amplitude factor).
     normalize_energy : bool
         Whether each field is normalized to unit energy.
     seed : int or None
-        Seed for the shuffle (reproducible splits for the report).
+        Seed for the shuffle. Fix it so the same data is used throughout.
     balanced : bool
         Draw an equal number of samples per class. The MNIST pool is
-        slightly imbalanced (6742 ones vs 6265 sevens in the training
-        split), which would put the majority-class baseline at 52.5%
-        instead of 50% and make accuracies harder to interpret.
+        slightly imbalanced (6742 ones vs 6265 sevens), which would put the
+        majority-class baseline above 50% and make accuracies harder to read.
+    split_ratio : float
+        Fraction of the data used for training, e.g. 0.8 for a 4:1 ratio.
     verbose : bool
-        Print sample count and class distribution.
+        Print sample counts and class distributions.
 
     Returns
     -------
-    E, y : encoded fields (N, num) and labels (num,)
+    E_train, y_train, E_test, y_test
+        Fields as (N, B) complex, labels as (B,).
     """
-    X_train, y_train, X_test, y_test = load_mnist(values)
-    X, y = (X_test, y_test) if mode == "Testing" else (X_train, y_train)
+    X_all, y_all, _, _ = load_mnist(values)     # discard MNIST's own test split
     rng = np.random.default_rng(seed)
 
-    if balanced:
-        indices = _balanced_indices(y, values, number, rng)
-    else:
-        indices = rng.permutation(len(y))
-        if number is not None:
-            if number > len(y):
-                print(f"Just {len(y)} images found. (Requested {number})")
-            indices = indices[:number]
+    # 1) shuffle the whole pool once
+    perm = rng.permutation(len(y_all))
+    X_all, y_all = X_all[perm], y_all[perm]
 
-    # encode ONLY the selected images -- down_sample is the expensive part
-    E = encode_batch(X[indices], m_side, theta_enc, normalize_energy)   # (B, N)
-    y_sel = y[indices]
-    assert len(E) == len(y_sel), f"{len(E)} fields but {len(y_sel)} labels"
+    # 2) keep `number` samples, balanced if requested
+    keep = _balanced_indices(y_all, values, number) if balanced \
+        else np.arange(len(y_all))[:number]
+    X_all, y_all = X_all[keep], y_all[keep]
+
+    # 3) split into training and testing, both balanced per class
+    X_train, y_train, X_test, y_test = split(X_all, y_all, values,
+                                             split_ratio, rng)
+
+    # 4) encode ONLY the selected images -- down_sample is the expensive part
+    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy).T
+    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy).T
 
     if verbose:
-        counts = {int(v): int(np.sum(y_sel == v)) for v in values}
-        print(f"{mode}: {len(y_sel)} samples, class counts {counts}")
-    return E.T, y_sel                       # -> (N, B)
-
+        for name, y in (("train", y_train), ("test ", y_test)):
+            counts = {int(v): int(np.sum(y == v)) for v in values}
+            print(f"{name}: {len(y):5d} samples, class counts {counts}")
+    return E_train, y_train, E_test, y_test

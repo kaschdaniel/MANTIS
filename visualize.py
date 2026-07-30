@@ -64,6 +64,8 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
     # ---------- Formen vereinheitlichen: immer (L+1, N, B) ----------
     if I.ndim == 2:
         I = I[:, :, None]
+        if title is None:
+            title=r"Field intensity $|E|^2$"
     elif I.ndim != 3:
         raise ValueError(f"erwarte (L+1, N) oder (L+1, N, B), bekommen {I.shape}")
     L1, N, B = I.shape
@@ -92,7 +94,7 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
                    extent=[-0.5, L1 - 0.5, N - 0.5, -0.5])
     ax.set_xlabel("layer  (0 = input field)")
     ax.set_ylabel(r"channel $k$")
-    ax.set_title(title or r"mean field intensity $|E|^2$")
+    ax.set_title(title or r"Mean field intensity $\overline{|E|^2}$")
  
     cb = fig.colorbar(im, cax=cax)
     cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
