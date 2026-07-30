@@ -77,7 +77,7 @@ class Trainer:
         fh = forward_history(E_batch, layers)                    # forward fields
         Gam = adjoint_source(fh, y_batch, d1, d7, cfg.loss_kind)  # Gamma_L
         bh = backward_history(Gam, layers)                       # adjoint fields
-        g_th, g_ph = gradient(fh, bh, self.mesh.plan)
+        g_th, g_ph = gradient(fh, bh, self.mesh.plan)            # gradient of parameter theta and phi
  
         # descent: minus the gradient. In-place, so self.thetas stays a
         # list of arrays (never use "self.thetas -= ...", that extends the list)
