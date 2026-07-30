@@ -163,7 +163,8 @@ def loss_function(E, y, det1, det7, kind="mse"):
         raise ValueError(f"unknown loss kind: {kind!r}")
     _, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7) #evaluating intensities at chosen detectors 
     per_sample, _, _ = LOSS_KINDS[kind](s1, s7, t1, t7)
-    return per_sample #returns loss per channel, per batch -> size (channel, batch)
+    return per_sample #returns loss per batch using given LOSS kinds. 
+    #Since its regarding given detector positions, it's not in dimension channel x batch but just 1xbatch (one loss value for every batch)
 
 
 def adjoint_source(E, y, det1, det7, kind="mse_norm"):

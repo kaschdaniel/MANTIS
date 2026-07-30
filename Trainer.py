@@ -52,8 +52,8 @@ class Trainer:
     """Adjoint-based gradient descent on an MZI mesh.
 
     Only two data sets are used, as specified for the project: the model is
-    trained on E_train, and the accuracy measured there is what the project
-    calls the validation accuracy. The test set is held out and evaluated
+    trained on E_train, and the accuracy measured there is referred to as
+    the validation accuracy. The test set is held out and evaluated
     once, at the end, via evaluate().
     """
 
@@ -93,7 +93,7 @@ class Trainer:
             self.thetas[l] -= cfg.learning_rate * g_th[l]
             self.phis[l]   -= cfg.learning_rate * g_ph[l]
 
-        loss, _ = loss_function(fh, y_batch, d1, d7, cfg.loss_kind)
+        loss = np.mean(loss_function(fh, y_batch, d1, d7, cfg.loss_kind)) #computing mean value of loss functions for given batch
         grad_norm = np.sqrt(sum(np.sum(g**2) for g in g_th + g_ph))
         return loss, grad_norm
 
@@ -101,16 +101,12 @@ class Trainer:
         """Loss and accuracy on any data set, without changing the weights."""
         d1, d7 = self.cfg.detectors
         E_out = forward(E, self._layers())
-        loss, _ = loss_function(E_out, y, d1, d7, self.cfg.loss_kind)
+        loss = np.mean(loss_function(E_out, y, d1, d7, self.cfg.loss_kind))
         conf = confusion_matrix(y, predict(E_out, d1, d7), classes=(1, 7))
         return loss, accuracy(conf)
 
     def fit(self, E_train, y_train):
         """Train until the loss stops improving or max_epochs is reached.
-
-        Early stopping here is a convergence criterion, not an overfitting
-        guard: the training loss decreases almost monotonically, so patience
-        only triggers once the run has flattened out.
         """
         cfg = self.cfg
         t0 = time.perf_counter()
