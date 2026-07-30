@@ -1,6 +1,7 @@
-from dataclasses import dataclass
-import numpy as np, time
+from dataclasses import dataclass, asdict, fields
+import numpy as np, time, json, pathlib
 
+from mesh import MZIMesh
 from processing import forward, forward_history, backward_history, gradient
 from decoding import loss_function, adjoint_source, predict
 from metrics import confusion_matrix, accuracy
@@ -67,7 +68,8 @@ class Trainer:
         self.rng = np.random.default_rng(cfg.param_init_seed)
         init = mesh.init_haar if cfg.init == "haar" else mesh.init_random
         self.thetas, self.phis = init(self.rng)
-        self.history = {"loss": [], "acc": [], "grad_norm": []}
+        self.history = {"loss": [], "acc": [], "grad_norm": [],
+                        "batch_loss": [], "epoch_end_step": []}
         self.train_time = None
 
     def _layers(self):
@@ -117,16 +119,21 @@ class Trainer:
         for epoch in range(cfg.max_epochs):
             idx = self.rng.permutation(E_train.shape[1])
             losses, norms = [], []
+            # Saving loss for every gradient step to see effect of batchsize
             for s in range(0, len(idx), cfg.batch_size):
                 b = idx[s:s + cfg.batch_size]
                 loss, gn = self.step(E_train[:, b], y_train[b])
                 losses.append(loss); norms.append(gn)
+                self.history["batch_loss"].append(float(loss))
 
             epoch_loss = float(np.mean(losses))
             _, acc = self.evaluate(E_train, y_train)
             self.history["loss"].append(epoch_loss)
             self.history["acc"].append(acc)
             self.history["grad_norm"].append(float(np.mean(norms)))
+            # step index at which this epoch ended, for marking epoch
+            # boundaries when plotting batch_loss
+            self.history["epoch_end_step"].append(len(self.history["batch_loss"]))
 
             if epoch_loss < best_loss - cfg.min_delta:
                 best_loss, wait = epoch_loss, 0
@@ -154,3 +161,57 @@ class Trainer:
         for _ in range(repeats):
             forward(one, layers)
         return (time.perf_counter() - t0) / repeats
+    # ------------------------------------------------ persistence
+    def save(self, path, **extra):
+        """Write the run to disk as JSON.
+
+        NumPy arrays are converted to lists.
+        Extra keyword arguments (test_acc, notes, ...) come back as trainer.extra.
+        """
+        state = {
+            "format": 1,
+            "cfg": asdict(self.cfg),
+            "N": self.mesh.N,
+            "plan": [[kind, list(ks) if isinstance(ks, np.ndarray) else ks]
+                     for kind, ks in self.mesh.plan],
+            "thetas": [t.tolist() for t in self.thetas],
+            "phis": [p.tolist() for p in self.phis],
+            "history": {k: [float(x) for x in v]
+                        for k, v in self.history.items()},
+            "train_time": float(self.train_time),
+            "extra": extra
+        }
+        path = pathlib.Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(state, f, indent=2)
+        return path
+
+    @classmethod
+    def load(cls, path):
+        """Rebuild a Trainer from a JSON file written by save()."""
+        with open(path, "r") as f:
+            state = json.load(f)
+
+        # keep only fields the current TrainConfig knows
+        known = {f.name for f in fields(TrainConfig)}
+        unknown = set(state["cfg"]) - known
+        if unknown:
+            print(f"ignoring unknown config fields: {sorted(unknown)}")
+        cfg = TrainConfig(**{k: v for k, v in state["cfg"].items() if k in known})
+
+        # reconstruct plan: ("mzi", [0, 2, ...]) or ("perm", array)
+        plan = []
+        for kind, ks in state["plan"]:
+            if kind == "perm" and isinstance(ks, list):
+                ks = np.array(ks)
+            plan.append((kind, ks))
+
+        obj = cls(MZIMesh(state["N"], plan), cfg)
+        obj.thetas = [np.array(t) for t in state["thetas"]]
+        obj.phis = [np.array(p) for p in state["phis"]]
+        obj.history = {k: [float(x) for x in v]
+                       for k, v in state["history"].items()}
+        obj.train_time = state["train_time"]
+        obj.extra = state.get("extra", {})
+        return obj
