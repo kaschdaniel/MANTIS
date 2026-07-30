@@ -76,7 +76,7 @@ def reshape_and_normalize(image):
     '''
     return image.reshape(-1).astype(np.float64) / 255
 
-def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False):
+def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encoding_type="amplitude"):
     '''
     Reshapes, normalizes and encodes batch of images into electrical field amplitude.
     Works for single images as well.
@@ -91,6 +91,8 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False):
         Hyperparameter controlling the strength of the encoding. The default is 1.
     normalize_energy : bool, optional
         Whether the images should be normalized for total energy. The default is False.
+    encoding_type : string, optional
+        Declares whether the information is decoded in the amplitude of the E-field or its phase.
 
     Returns
     -------
@@ -105,7 +107,7 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False):
     for img in images:
         small = down_sample(img, m_side=m_side)
         vec = reshape_and_normalize(small)
-        if encoding == "phase":
+        if encoding_type == "phase":
             E = phase_encoding(vec, theta_enc)
         else:
             E = amplitude_encoding(vec, theta_enc)

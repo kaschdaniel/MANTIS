@@ -13,8 +13,6 @@ from keras.datasets import mnist
 
 
 
-
-
 ### PREPARE TRAINING DATA
 
 values = np.array([1,7]) #figures you want from the mnist dataset
