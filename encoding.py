@@ -138,19 +138,58 @@ def amplitude_encoding(image, theta_enc=1):
     E = E * ampl_mod * theta_enc
     return E
 
-def get_data(values, mode: str, number=None, m_side=10, theta_end=1,
-             normalize_energy=False, seed=None):
+def _balanced_indices(y, values, number, rng):
+    '''
+    Indices of an equal number of samples per class, shuffled.
+
+    Parameters
+    ----------
+    y : 1D array
+        Labels of the full pool.
+    values : sequence
+        Class values to balance over, e.g. (1, 7).
+    number : int or None
+        Total number of samples wanted across all classes. None -> use as
+        many as the smallest class allows.
+    rng : np.random.Generator
+
+    Returns
+    -------
+    1D array of int
+        Positions into y, class-balanced and shuffled.
+    '''
+    per_class = [np.flatnonzero(y == v) for v in values]
+    avail = min(len(idx) for idx in per_class)      # limited by smallest class
+
+    if number is None:
+        n_each = avail
+    else:
+        n_each = number // len(values)
+        if n_each > avail:
+            print(f"Only {avail} samples per class available "
+                  f"({len(values)*avail} total, requested {number}).")
+            n_each = avail
+
+    picked = np.concatenate([rng.permutation(idx)[:n_each] for idx in per_class])
+    return rng.permutation(picked)   # mix classes, otherwise minibatches
+                                     # would each contain only one class
+
+def get_data(values, mode: str, number=None, m_side=10, theta_enc=1,
+             normalize_energy=False, seed=None, balanced=True, verbose=True):
     """Load, encode and sample MNIST data.
- 
+
     Parameters
     ----------
     values : array-like of int
         Wanted MNIST classes, e.g. np.array([1, 7]).
     mode : str
         "Testing" or "Training".
-    number : int
-        Amount of data samples requested.
-    m : int
+    number : int or None
+        Total number of samples requested across all classes. With
+        balanced=True this is split evenly, so the effective count is
+        len(values) * (number // len(values)). None -> take as many as
+        possible.
+    m_side : int
         New edge size after down-sampling (pixels).
     theta_enc : float
         Hyperparameter (amplitude factor).
@@ -158,39 +197,38 @@ def get_data(values, mode: str, number=None, m_side=10, theta_end=1,
         Whether each field is normalized to unit energy.
     seed : int or None
         Seed for the shuffle (reproducible splits for the report).
- 
+    balanced : bool
+        Draw an equal number of samples per class. The MNIST pool is
+        slightly imbalanced (6742 ones vs 6265 sevens in the training
+        split), which would put the majority-class baseline at 52.5%
+        instead of 50% and make accuracies harder to interpret.
+    verbose : bool
+        Print sample count and class distribution.
+
     Returns
     -------
-    E, y : encoded fields (N,num) and labels (num,)
+    E, y : encoded fields (N, num) and labels (num,)
     """
     X_train, y_train, X_test, y_test = load_mnist(values)
- 
-    # --- select split ---
-    if mode == "Testing":
-        X, y = X_test, y_test
+    X, y = (X_test, y_test) if mode == "Testing" else (X_train, y_train)
+    rng = np.random.default_rng(seed)
+
+    if balanced:
+        indices = _balanced_indices(y, values, number, rng)
     else:
-        X, y = X_train, y_train
- 
-    E = encode_batch(X, m_side, theta_enc, normalize_energy)   # (B, N): Line corresponds to image
+        indices = rng.permutation(len(y))
+        if number is not None:
+            if number > len(y):
+                print(f"Just {len(y)} images found. (Requested {number})")
+            indices = indices[:number]
 
-    # consistency check on image axis
-    assert len(E) == len(y), \
-        f"Mismatch: {len(E)} fields but {len(y)} labels"
+    # encode ONLY the selected images -- down_sample is the expensive part
+    E = encode_batch(X[indices], m_side, theta_enc, normalize_energy)   # (B, N)
+    y_sel = y[indices]
+    assert len(E) == len(y_sel), f"{len(E)} fields but {len(y_sel)} labels"
 
-    k = len(y) #number of samples
-
-    # Case 1: fewer images available than requested
-    if number is None:
-        rng = np.random.default_rng(seed)
-        indices = rng.permutation(k)
-        return E[indices].T, y[indices]        # choose on (B,N), then -> (N, number)
-    elif (number > k):
-        print(f"Just {k} images found. (Requested number = {number})")
-        return E.T, y                      # first here -> (N, k)
-    else:
-        # Case 2: more images available than requested -> random subset
-        rng = np.random.default_rng(seed)
-        indices = rng.permutation(k)[:number]
-        return E[indices].T, y[indices]        # choose on (B,N), then -> (N, number)
-    raise ValueError("Handling of variable 'number' threw exception!")
+    if verbose:
+        counts = {int(v): int(np.sum(y_sel == v)) for v in values}
+        print(f"{mode}: {len(y_sel)} samples, class counts {counts}")
+    return E.T, y_sel                       # -> (N, B)
 
