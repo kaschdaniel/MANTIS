@@ -105,7 +105,10 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False):
     for img in images:
         small = down_sample(img, m_side=m_side)
         vec = reshape_and_normalize(small)
-        E = amplitude_encoding(vec, theta_enc)
+        if encoding == "phase":
+            E = phase_encoding(vec, theta_enc)
+        else:
+            E = amplitude_encoding(vec, theta_enc)
         if normalize_energy:
             nrm = np.linalg.norm(E)
             if nrm > 0:
@@ -137,6 +140,10 @@ def amplitude_encoding(image, theta_enc=1):
     # Add amplitude modulation
     E = E * ampl_mod * theta_enc
     return E
+
+def phase_encoding(image, theta_enc=1):
+    """Encode pixel values in the phase, constant amplitude."""
+    return np.exp(1j * theta_enc * np.pi * image)
 
 def _balanced_indices(y, values, number, rng):
     '''

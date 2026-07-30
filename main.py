@@ -21,12 +21,12 @@ values = np.array([1,7]) #figures you want from the mnist dataset
 mode = "Training" #Selects if you want the test-set ("Testing") or the training-set ("Training")
 number = 1000 #Sets number of samples you want to get in total
 m_side = 10 #side length (pixel) of mnist image after downsampling
-theta = 1 #mysterious hyper parameter for amplitude scaling
+theta_enc = 1 #mysterious hyper parameter for amplitude scaling
 norm_energy = True #Bool for if energy of encoded image should be normalized or not
 seed = None #Random seed to control random choice of number -pictures out of the available ones, 
             #seed = None leads to random results for each iteration
 
-E_X, Y = get_data(values, mode, number, m_side, theta, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
+E_X, Y = get_data(values, mode, number, m_side, theta_enc, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
                                                                   #Y are the referring labels
 
 N=100 #number of channels (number of pixels in mnist image)
@@ -41,11 +41,11 @@ values = np.array([1,7]) #figures you want from the mnist dataset
 mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
 number_t = 1000 #Sets number of samples you want to get in total
 m_side = 10 #side length (pixel) of mnist image after downsampling
-theta = 1 #mysterious hyper parameter for amplitude scaling
+theta_enc = 1 #mysterious hyper parameter for amplitude scaling
 norm_energy = True #Bool for if energy of encoded image should be normalized or not
 seed = None #Random seed to control random choice of number -pictures out of the available ones, 
             #seed = None leads to random results for each iteration
-E_X_test, Y_test = get_data(values, mode, number_t, m_side, theta, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
+E_X_test, Y_test = get_data(values, mode, number_t, m_side, theta_enc, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
 
 
 
