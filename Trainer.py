@@ -26,7 +26,7 @@ class TrainConfig:
     max_epochs: int = 300
     patience: int = 20               # epochs without loss improvement
     min_delta: float = 1e-4          # smallest loss drop counted as progress
-    seed: int | None = 0
+    param_init_seed: int | None = 0
 
     # --- hardware imperfections (fixed, not trained) ---
     eta_bs: float = 1.0              # power transmission per beam splitter
@@ -64,7 +64,7 @@ class Trainer:
         if max(cfg.detectors) >= mesh.N:
             raise ValueError(f"detector {max(cfg.detectors)} outside N={mesh.N}")
         self.mesh, self.cfg = mesh, cfg
-        self.rng = np.random.default_rng(cfg.seed)
+        self.rng = np.random.default_rng(cfg.param_init_seed)
         init = mesh.init_haar if cfg.init == "haar" else mesh.init_random
         self.thetas, self.phis = init(self.rng)
         self.history = {"loss": [], "acc": [], "grad_norm": []}

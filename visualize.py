@@ -5,6 +5,10 @@ from matplotlib.patches import Rectangle
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 
+#####################################################################################################
+#-----------------------Plotting Intensity in Mesh---------------------------------------------------
+#####################################################################################################
+
 def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
                        cmap="inferno", log=False):
     """Feldintensitaet |E|^2 als Heatmap (Kanal ueber Layer).
@@ -102,7 +106,7 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
  
     # ---------- histogram bars (barh = rotated 90 deg) ----------
     for c, col in zip(classes, class_colors):
-        hax.barh(np.arange(N), bars[c], height=0.85, color=col, alpha=0.5,
+        hax.barh(np.arange(N), bars[c], height=0.85, color=col, alpha=0.3,
                  label=f"class {c}", zorder=2)
  
     # ---------- detector outlines ----------
@@ -132,6 +136,9 @@ def plot_intensity_map_with_histogram(I, det1, det7, Y,
  
     return fig, (ax, hax)
 
+#####################################################################################################
+#-----------------------Plotting Mesh Architecture---------------------------------------------------
+#####################################################################################################
 
 def plot_mesh(mesh, ax=None, color_by=None, detectors=None,
               label_step=None, figsize=None, title=None):
@@ -254,4 +261,60 @@ def plot_layers(layers, mode: str = "Abs"):
         ax.set_title(f"L{l}", fontsize=9)
         ax.set_xticks([]); ax.set_yticks([])
     fig.colorbar(im, ax=axes, shrink=0.7)
+    return fig, axes
+
+#####################################################################################################
+#-----------------------Evaluating Training Results--------------------------------------------------
+#####################################################################################################
+
+def plot_training(trainers, sweep_values=None, sweep_label="m",
+                  keys=("loss", "acc", "grad_norm")):
+    """Learning curves of one Trainer or of several runs of a sweep.
+
+    trainers     : a single Trainer, or a list of Trainers (one per sweep
+                   point). Only .history is read, so a plain history dict
+                   works as well.
+    sweep_values : values of the swept parameter, same length as trainers.
+                   None -> runs are numbered instead.
+    sweep_label  : name of the swept parameter, used in the legend.
+    keys         : which history entries to plot, one panel each.
+
+    Returns (fig, axes).
+    """
+    if not isinstance(trainers, (list, tuple, np.ndarray)):
+        trainers = [trainers]                       # single run
+    hists = [t.history if hasattr(t, "history") else t for t in trainers]
+
+    if sweep_values is None:
+        labels = [f"run {i}" for i in range(len(hists))]
+    else:
+        if len(sweep_values) != len(hists):
+            raise ValueError(f"{len(sweep_values)} sweep values but "
+                             f"{len(hists)} trainers")
+        labels = [f"{sweep_label} = {v}" for v in sweep_values]
+
+    log_scale = {"loss", "grad_norm"}
+    axis_label = {"loss": "training loss", "acc": "accuracy",
+                  "grad_norm": r"$\|\nabla\|_2$"}
+
+    fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys), 3.5),
+                             squeeze=False)
+    axes = axes[0]
+    cmap = plt.get_cmap("viridis")
+    for i, (h, lab) in enumerate(zip(hists, labels)):
+        col = cmap(i / max(len(hists) - 1, 1)) if len(hists) > 1 else "tab:blue"
+        for ax, key in zip(axes, keys):
+            ax.plot(h[key], color=col, label=lab)
+
+    for ax, key in zip(axes, keys):
+        ax.set_xlabel("epoch")
+        ax.set_ylabel(axis_label.get(key, key))
+        if key in log_scale:
+            ax.set_yscale("log")
+        #if key == "acc":
+            #ax.axhline(0.5, color="0.6", ls=":", zorder=0)
+            #ax.set_ylim(0.45, 1.02)
+    if len(hists) > 1:
+        axes[0].legend(fontsize=8)
+    fig.tight_layout()
     return fig, axes

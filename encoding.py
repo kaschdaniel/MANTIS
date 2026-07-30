@@ -278,7 +278,7 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy).T
 
     if verbose:
-        for name, y in (("train", y_train), ("test ", y_test)):
+        for name, y in (("Train", y_train), ("Test ", y_test)):
             counts = {int(v): int(np.sum(y == v)) for v in values}
             print(f"{name}: {len(y):5d} samples, class counts {counts}")
     return E_train, y_train, E_test, y_test
