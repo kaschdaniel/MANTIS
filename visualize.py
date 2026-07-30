@@ -45,107 +45,90 @@ def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
 def plot_intensity_map_with_histogram(I, det1, det7, Y,
                                       cmap="inferno", log=False,
                                       class_colors=("tab:cyan", "tab:orange"),
-                                      target_color="red", title=None):
-    """Intensitaetskarte + gedrehtes Histogramm der Ausgangsintensitaeten.
+                                      title=None):
+    """Intensity heatmap plus a rotated histogram of the output intensities.
  
-    I    : (L+1, N) fuer ein Sample oder (L+1, N, B) fuer einen Batch.
-           Zeile s = Feldintensitaet nach s Layern (s=0 = Eingang).
-    det1 : Kanalindex des Detektors fuer Klasse "1".
-    det7 : Kanalindex des Detektors fuer Klasse "7".
-    Y    : Label(s). Skalar/int fuer ein Sample, sonst Array (B,).
+    I    : (L+1, N) for one sample or (L+1, N, B) for a batch.
+           Row s = field intensity after s layers (s=0 is the input).
+    det1, det7 : channel indices of the detectors for class 1 and class 7.
+    Y    : label(s); scalar for one sample, array (B,) for a batch.
  
-    Heatmap  = Mittelwert ueber alle Samples.
-    Histogram = Ausgangsintensitaet je Kanal, pro Klasse ueberlagert
-                halbtransparent, plus schraffiertes Ziel-Overlay.
+    Left panel:  mean intensity over all samples, as a channel-over-layer map.
+    Right panel: per-class output intensity per channel (bars), with the two
+                 detector bars outlined. For a single class the outline is
+                 green at the wanted detector and red at the other; with both
+                 classes present no detector is preferred, so both are orange.
     """
-    I = np.asarray(I, dtype=float)
+    # ---------- normalize shapes to (L+1, N, B) ----------
+    I = np.atleast_3d(np.asarray(I, dtype=float))
     Y = np.atleast_1d(np.asarray(Y))
- 
-    # ---------- Formen vereinheitlichen: immer (L+1, N, B) ----------
-    if I.ndim == 2:
-        I = I[:, :, None]
-        if title is None:
-            title=r"Field intensity $|E|^2$"
-    elif I.ndim != 3:
-        raise ValueError(f"erwarte (L+1, N) oder (L+1, N, B), bekommen {I.shape}")
     L1, N, B = I.shape
     if len(Y) != B:
-        raise ValueError(f"Y hat {len(Y)} Labels, I aber {B} Samples")
+        raise ValueError(f"{len(Y)} labels but {B} samples in I")
  
-    heat = I.mean(axis=2)                    # (L+1, N): Mittel ueber Samples
-    I_out = I[-1]                            # (N, B): Ausgangsintensitaeten
+    # ---------- reduce data ----------
+    heat = I.mean(axis=2)                            # (L+1, N) map
+    I_out = I[-1]                                    # (N, B) output field
+    classes = np.sort(np.unique(Y))                 # smaller label first
+    class_color = dict(zip(classes, class_colors))
+    bars = {c: (lambda p: p / p.sum() if p.sum() > 0 else p)
+               (I_out[:, Y == c].mean(axis=1))      # mean profile, normalized
+            for c in classes}
  
-    # ---------- pro Klasse mitteln und normieren ----------
-    classes = np.sort(np.unique(Y))
-    bars = {}
-    for c in classes:
-        mask = (Y == c)
-        prof = I_out[:, mask].mean(axis=1)   # mittlere Intensitaet je Kanal
-        total = prof.sum()
-        bars[c] = prof / total if total > 0 else prof
- 
-    # ---------- Layout: Colorbar links, Heatmap mitte, Histogram rechts ----------
+    # ---------- figure: colorbar | heatmap | histogram ----------
     fig, (cax, ax, hax) = plt.subplots(
         1, 3, figsize=(max(9, 0.09*L1 + 6), max(3.5, 0.05*N + 3)),
         gridspec_kw={"width_ratios": [0.035, 1.0, 0.42], "wspace": 0.15})
  
+    # ---------- heatmap ----------
     data = np.log10(np.maximum(heat.T, 1e-12)) if log else heat.T
     im = ax.imshow(data, aspect="auto", cmap=cmap, interpolation="nearest",
                    extent=[-0.5, L1 - 0.5, N - 0.5, -0.5])
     ax.set_xlabel("layer  (0 = input field)")
     ax.set_ylabel(r"channel $k$")
-    ax.set_title(title or r"Mean field intensity $\overline{|E|^2}$")
- 
+    ax.set_title(title or (r"Field intensity $|E|^2$" if B == 1
+                           else r"Mean field intensity $\overline{|E|^2}$"))
     cb = fig.colorbar(im, cax=cax)
     cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
     cax.yaxis.set_ticks_position("left")
     cax.yaxis.set_label_position("left")
  
-    # ---------- Histogram: barh = um 90 Grad gedreht ----------
-    channels = np.arange(N)
+    # detector markers along the heatmap's output edge
+    for d, lab in zip((det1, det7), ("1", "7")):
+        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen",
+                clip_on=False, zorder=5)
+        ax.text(L1 + 0.75, d, f"det {lab}", va="center", rotation="vertical",
+                fontsize=8, color="forestgreen", clip_on=False)
+ 
+    # ---------- histogram bars (barh = rotated 90 deg) ----------
     for c, col in zip(classes, class_colors):
-        hax.barh(channels, bars[c], height=0.85, color=col, alpha=0.55,
+        hax.barh(np.arange(N), bars[c], height=0.85, color=col, alpha=0.5,
                  label=f"class {c}", zorder=2)
  
-    # ---------- Ziel-Overlay ----------
-    # Option 3a (gewaehlt): Ziel ist die literale 1.0 -> gesamte Energie am Detektor
-    target_scale = 1.0
-    # --- alternative Skalierungen, bei Bedarf einkommentieren -------------
-    # Option 3b: auf die hoechste vorkommende Balkenhoehe
-    # target_scale = max(b.max() for b in bars.values())
-    # Option 3c: auf die Summe der beiden Detektorbalken
-    # target_scale = max(sum(b[[det1, det7]].sum() for b in bars.values()), 1e-12)
-    # ---------------------------------------------------------------------
-    # Detectors
-    detectors=np.array([det1, det7])
-    labels=["1","7"]
-    for d,l in zip(detectors,labels):
-        ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5)
-        ax.text(L1 + 0.75, d, f"det {l}", va="center",rotation='vertical', fontsize=8, color="forestgreen", clip_on=False)
-
+    # ---------- detector outlines ----------
+    # colour encodes the expectation: green = should get the energy,
+    # red = should stay low, orange = both classes present (no preference)
+    both = len(classes) > 1
+    want_det = {1: det1, 7: det7}                    # each class' own detector
+    for d in (det1, det7):
+        # tallest first, so the shorter bar's outline ends up on top
+        for z, c in enumerate(sorted(classes, key=lambda c: bars[c][d],
+                                     reverse=True)):
+            edge = class_color[c] if both else \
+                   ("forestgreen" if d == want_det[c] else "crimson")
+            hax.barh(d, bars[c][d], height=0.85, facecolor="none",
+                     edgecolor=edge, linewidth=1.8, zorder=4 + z)
  
-
-    #----------------------------------------------------------------------
-    for c in classes:
-        d = det1 if c == classes[0] else det7
-        hax.barh([d], [target_scale], height=0.85,
-                 facecolor=target_color, linewidth=1.2,
-                 alpha=0.3, zorder=3,
-                 label="target" if c == classes[0] else None)
- 
-    hax.set_ylim(N - 0.5, -0.5)              # gleiche Kanalachse wie Heatmap
-    hax.set_xscale("linear")
+    # ---------- histogram cosmetics ----------
+    hax.set_ylim(N - 0.5, -0.5)                      # same channel axis as heatmap
+    hax.set_xlim(0, 1.05 * max(b.max() for b in bars.values()))
     hax.set_yticks([])
-    hax.set_xlim(0, target_scale * 1.05)     # bei 3b/3c ebenfalls passend
-    # --- falls die Balken zu flach wirken, stattdessen autoskalieren: -----
-    # hax.set_xlim(0, 1.05 * max(b.max() for b in bars.values()))
-    # ---------------------------------------------------------------------
     hax.set_xlabel(r"norm. $|E|^2$")
-    hax.axhline(det1, color="0.5", lw=0.6, ls=":", zorder=1)
-    hax.axhline(det7, color="0.5", lw=0.6, ls=":", zorder=1)
-    hax.legend(fontsize=7, loc="lower right", framealpha=0.9)
+    hax.axhline(det1, color="0.6", lw=0.6, ls=":", zorder=1)
+    hax.axhline(det7, color="0.6", lw=0.6, ls=":", zorder=1)
     for s in ("top", "right"):
         hax.spines[s].set_visible(False)
+    hax.legend(fontsize=7, loc="lower right", framealpha=0.9)
  
     return fig, (ax, hax)
 

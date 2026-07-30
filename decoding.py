@@ -69,52 +69,6 @@ def predict(E, det1=0, det7=-1):
     I = detection(Efield)
     return np.where(I[det1] >= I[det7], 1, 7)
 
-def accuracy(E, y, det1, det7):
-    '''
-    Returns accuracy for evaluated outcome of given samples E, y
-
-    Parameters
-    ----------
-    E : (channel, batch) or (L+1, channel, batch) complex
-        (Batch of) Electrical field output of chip.
-    y : (batch)
-    det1 : int, optional
-        Position of detector for 1st digit. The default is 0.
-    det2 : int, optional
-        Position of detector for 2nd digit. The default is -1.
-
-    Returns
-    -------
-    float
-        Returns proportion of correct identifications
-
-    '''
-    return np.mean(predict(E, det1, det7) == y)
-
-def confusion_matrix(y_true, y_pred_label):
-    '''
-    Calculate confusion matrix for binary classification
-
-    Parameters
-    ----------
-    y_true : 1D Array of int
-        True labels.
-    y_pred_label : 1D Array of int
-        Predicted labels.
-
-    Returns
-    -------
-    conf_matrix : 2x2 Array of int
-        Confusion matrix.
-
-    '''
-    conf_matrix = np.zeros((2, 2), dtype=int)
-    for t in (0, 1):
-        for p in (0, 1):
-            conf_matrix[t, p] = np.sum((y_true.astype(int) == t) & (y_pred_label.astype(int) == p))
-    print(conf_matrix)
-    return conf_matrix
-
 def _detector_scores(E, y, det1, det7):
     """Extract detector intensities and one-hot targets.
 
