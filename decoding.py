@@ -150,6 +150,9 @@ def mse(s1, s7, t1, t7):
     per_sample = d1**2 + d7**2
     return per_sample, 2.0 * d1, 2.0 * d7
 
+#cross entropy
+#cos simularity?
+
 
 def mse_norm(s1, s7, t1, t7, eps=1e-12):
     """MSE on the normalized scores p = s / (s1 + s7).

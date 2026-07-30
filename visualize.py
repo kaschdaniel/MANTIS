@@ -293,9 +293,10 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
                              f"{len(hists)} trainers")
         labels = [f"{sweep_label} = {v}" for v in sweep_values]
 
-    log_scale = {"loss", "grad_norm"}
-    axis_label = {"loss": "training loss", "acc": "accuracy",
-                  "grad_norm": r"$\|\nabla\|_2$"}
+    log_scale = {"loss", "grad_norm", "batch_loss"}
+    axis_label = {"loss": "Training loss", "acc": "Accuracy",
+                  "grad_norm": r"$\|\nabla\|_2$", "batch_loss": "Batch loss"}
+    x_label = {"batch_loss": "gradient step"}
 
     fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys), 3.5),
                              squeeze=False)
@@ -304,16 +305,27 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
     for i, (h, lab) in enumerate(zip(hists, labels)):
         col = cmap(i / max(len(hists) - 1, 1)) if len(hists) > 1 else "tab:blue"
         for ax, key in zip(axes, keys):
-            ax.plot(h[key], color=col, label=lab)
+            if key == "batch_loss":
+                # x in epoch units: fractional positions between integers
+                spe = h["epoch_end_step"][0] if h.get("epoch_end_step") else 1
+                x = (np.arange(len(h[key])) + 1) / spe
+                ax.plot(x, h[key], color=col, lw=0.9, marker="o", markersize=3, label=lab)
+            else:
+                ax.plot(h[key], color=col, lw=1.5, marker="o", markersize=3, label=lab)
 
     for ax, key in zip(axes, keys):
-        ax.set_xlabel("epoch")
+        ax.set_xlabel("Epoch")
         ax.set_ylabel(axis_label.get(key, key))
         if key in log_scale:
             ax.set_yscale("log")
         #if key == "acc":
-            #ax.axhline(0.5, color="0.6", ls=":", zorder=0)
-            #ax.set_ylim(0.45, 1.02)
+        #    ax.axhline(0.5, color="0.6", ls=":", zorder=0)
+        #    ax.set_ylim(0.45, 1.02)
+        # epoch boundaries only for a single run, otherwise too cluttered
+        if key == "batch_loss" and len(hists) == 1:
+            spe = hists[0]["epoch_end_step"][0]
+            for s in hists[0]["epoch_end_step"]:
+                ax.axvline(s / spe, color="0.85", lw=0.5, zorder=0)
     if len(hists) > 1:
         axes[0].legend(fontsize=8)
     fig.tight_layout()
