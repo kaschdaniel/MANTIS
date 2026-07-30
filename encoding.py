@@ -165,7 +165,7 @@ def get_data(values, mode: str, number=None, m_side=10, theta=1,
     """
     X_train, y_train, X_test, y_test = load_mnist(values)
  
-    # --- select split (FIX: Training must use X_train, not X_test) ---
+    # --- select split ---
     if mode == "Testing":
         X, y = X_test, y_test
     else:

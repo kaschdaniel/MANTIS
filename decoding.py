@@ -91,6 +91,30 @@ def accuracy(E, y, det1, det7):
     '''
     return np.mean(predict(E, det1, det7) == y)
 
+def confusion_matrix(y_true, y_pred_label):
+    '''
+    Calculate confusion matrix for binary classification
+
+    Parameters
+    ----------
+    y_true : 1D Array of int
+        True labels.
+    y_pred_label : 1D Array of int
+        Predicted labels.
+
+    Returns
+    -------
+    conf_matrix : 2x2 Array of int
+        Confusion matrix.
+
+    '''
+    conf_matrix = np.zeros((2, 2), dtype=int)
+    for t in (0, 1):
+        for p in (0, 1):
+            conf_matrix[t, p] = np.sum((y_true.astype(int) == t) & (y_pred_label.astype(int) == p))
+    print(conf_matrix)
+    return conf_matrix
+
 def _detector_scores(E, y, det1, det7):
     """Extract detector intensities and one-hot targets.
 
