@@ -122,27 +122,6 @@ def mse(s1, s7, t1, t7):
     per_sample = d1**2 + d7**2
     return per_sample, 2.0 * d1, 2.0 * d7
 
-#cross entropy
-#cos simularity?
-
-
-def mse_norm(s1, s7, t1, t7, eps=1e-12):
-    """MSE on the normalized scores p = s / (s1 + s7).
-
-    Invariant to overall loss/energy, since only the ratio of the two
-    detectors matters. Derivatives follow from the quotient rule:
-        dp1/ds1 =  s7/tot^2,   dp1/ds7 = -s1/tot^2   (and vice versa for p7)
-    """
-    tot = s1 + s7 + eps
-    p1, p7 = s1 / tot, s7 / tot
-    d1, d7 = p1 - t1, p7 - t7
-    per_sample = d1**2 + d7**2
-
-    dL_dp1, dL_dp7 = 2.0 * d1, 2.0 * d7
-    dL_ds1 = dL_dp1 * ( s7 / tot**2) + dL_dp7 * (-s7 / tot**2)
-    dL_ds7 = dL_dp1 * (-s1 / tot**2) + dL_dp7 * ( s1 / tot**2)
-    return per_sample, dL_ds1, dL_ds7
-
 
 def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     """Cross-entropy over the two detectors, using the intensities as logits.
@@ -151,15 +130,29 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     intensities, the effective sharpness depends on the absolute scale of
     s1, s7 -- worth keeping in mind when tuning theta.
     """
-    z = np.stack([s1, s7], axis=0)                  # (2, batch)
-    z = z - z.max(axis=0, keepdims=True)            # numerical stability
+    
+    # group inputs and targets into arrays instead of stacking
+    z = np.array([s1, s7])
+    tgt = np.array([t1, t7])
+    
+    # shift logits by max value for numerical stability before exp
+    max_z = np.max(z, axis=0, keepdims=True)
+    z = z - max_z
+    
+    # get softmax probabilities
     ez = np.exp(z)
-    soft = ez / ez.sum(axis=0, keepdims=True)
-    tgt = np.stack([t1, t7], axis=0)
-
-    per_sample = -(tgt * np.log(soft + eps)).sum(axis=0)
-    # standard result: dL/dz = softmax - target
-    return per_sample, soft[0] - t1, soft[1] - t7
+    ez_sum = np.sum(ez, axis=0, keepdims=True)
+    soft = ez / ez_sum
+    
+    # calculate cross entropy loss
+    loss_matrix = tgt * np.log(soft + eps)
+    per_sample = -np.sum(loss_matrix, axis=0)
+    
+    # gradients for ce loss are simply prediction minus target
+    grad_s1 = soft[0] - t1
+    grad_s7 = soft[1] - t7
+    
+    return per_sample, grad_s1, grad_s7
 
 LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
 
