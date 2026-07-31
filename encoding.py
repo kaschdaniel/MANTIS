@@ -134,13 +134,7 @@ def amplitude_encoding(image, theta_enc=1):
         Amplitude-encoded electric field
 
     '''
-    # Convert image to normalized vector
-    ampl_mod = image
-    
-    E = np.ones_like(ampl_mod, dtype = complex)
-    # Add amplitude modulation
-    E = E * ampl_mod * theta_enc
-    return E
+    return (image * theta_enc).astype(complex)
 
 def phase_encoding(image, theta_enc=1):
     """Encode pixel values in the phase, constant amplitude."""
