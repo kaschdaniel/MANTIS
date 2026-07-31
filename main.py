@@ -46,7 +46,7 @@ def linear_regression(X_train, y_train, X_test, y_test):
 
 #%%% Load and encode data (identical for all tests)
 values = np.array([1,7])#figures you want from the mnist dataset
-number = 1000            #Sets number of samples you want to get in total
+number = 2000            #Sets number of samples you want to get in total
 m_side = 10             #side length (pixel) of mnist image after downsampling
 theta_enc = 1           #mysterious hyper parameter for amplitude scaling
 norm_energy = True      #Bool for if energy of encoded image should be normalized or not
@@ -65,10 +65,51 @@ E_train, Y_train, E_test, Y_test = get_data(values, number, m_side,
 def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
     return linear_regression(E_train, Y_train, E_test, Y_test)[2]
 
-print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-# _, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
-# print(acc)
 
+#With normalized Energy
+norm_energy=True
+print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+#_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
+#print(acc)
+
+#Sweep over ms
+ms = [1,2,4,6,8,10,16,20,28]
+acc_normed=[]
+for m_side in ms:
+    E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                        theta_enc, norm_energy, seed, balanced, split_ratio) 
+    acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+
+print(acc_normed)
+plt.plot(ms,acc_normed,marker="o", markersize=2, label="w/ energy normalization")
+
+#Without normalized Energy
+norm_energy = False      #Bool for if energy of encoded image should be normalized or not
+E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                        theta_enc, norm_energy, seed, balanced, split_ratio)
+print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+#_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
+#print(acc)
+
+#Sweep over ms
+ms = [1,2,4,6,8,10,16,20,28]
+acc_not_normed=[]
+for m_side in ms:
+    E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                        theta_enc, norm_energy, seed, balanced, split_ratio) 
+    acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+
+print(acc_not_normed)
+plt.plot(ms,acc_not_normed,marker="o", markersize=2, label="w/o energy normalization")
+plt.xlabel("Side length of MNIST Datasets")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.grid(alpha=0.2)
+plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png", dpi=600, bbox_inches='tight')
+#%%% print max. accuracy for both linear regression methods
+print("Accuracy results of linear regression")
+print(f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
+print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
 
 #%%% Standard Training
 m = 10
@@ -98,7 +139,7 @@ fig, _ = plot_training(trainer)
 
 #%%% Test for batch sizes
 
-batch_sizes = [1, 2, 4, 8, 16, 32, 64]
+batch_sizes = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256, 512])
 
 m = 10
 detector_positions = (33, 66)
@@ -107,17 +148,41 @@ trainers = []
 for size in batch_sizes:
     cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
             detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=size,
-                      init="haar", max_epochs=10, patience=20, min_delta=1e-4, 
+                      init="haar", max_epochs=35, patience=2, min_delta=1e-4, 
+                      param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
+    E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
+                                      theta_enc=1, normalize_energy=True,
+                                      seed=1550, balanced=True, verbose=True)
+    t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
+    t.fit(E_tr, y_tr)
+    t.test_acc = t.evaluate(E_te, y_te)[1]  
+    t.save(f"results/batch_size/{size}.json", test_acc=t.test_acc)
+    trainers.append(t)
+    
+#%%%
+fig, _ = plot_training(trainers, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
+
+#%%% Fixed ratio of batch_size and learning_rate
+learning_rate_fixed = batch_sizes*0.1
+batch_sizes = [16, 2]
+
+trainers_fixed = []
+for size, rate in zip(batch_sizes, learning_rate_fixed):
+    cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
+            detectors=detector_positions, loss_kind='mse', learning_rate=rate, batch_size=size,
+                      init="haar", max_epochs=35, patience=2, min_delta=1e-4, 
                       param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
     E_tr, y_tr, E_te, y_te = get_data(values, number=200, m_side=m,
                                       theta_enc=1, normalize_energy=True,
                                       seed=1550, balanced=True, verbose=True)
     t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
     t.fit(E_tr, y_tr)
-    t.test_acc = t.evaluate(E_te, y_te)[1]      
-    trainers.append(t)
+    t.test_acc_fixed = t.evaluate(E_te, y_te)[1]      
+    trainers_fixed.append(t)
 
-fig, _ = plot_training(trainers, batch_sizes, "batch_size")
+#%%%
+fig, _ = plot_training(trainers_fixed, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
+
 
 
 # runs = {"history": history, "test_acc": test_acc,
@@ -295,3 +360,5 @@ fig, _ = plot_training(trainers, batch_sizes, "batch_size")
 # # # Lernkurve fürs Protokoll
 # # fig, _ = plot_learning_curves(history)   # train_loss, val_loss, val_acc
 # # # %%
+
+# %%

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict, fields
 import numpy as np, time, json, pathlib
+from tqdm.auto import tqdm
 
 from mesh import MZIMesh
 from processing import forward, forward_history, backward_history, gradient
@@ -115,38 +116,46 @@ class Trainer:
         best_loss = np.inf
         best_params = (_copy(self.thetas), _copy(self.phis))
         wait = 0
+        # Time tracking using tqdm
+        num_samples = E_train.shape[1]
+        batches_per_epoch = np.ceil(num_samples / cfg.batch_size) #how many batches per sample
+        total_steps = cfg.max_epochs * batches_per_epoch
+        with tqdm(total=total_steps, desc="Starte Training...") as pbar:
+            for epoch in range(cfg.max_epochs):
+                idx = self.rng.permutation(E_train.shape[1])
+                losses, norms = [], []
+                # Saving loss for every gradient step to see effect of batchsize
+                for s in range(0, len(idx), cfg.batch_size):
+                    b = idx[s:s + cfg.batch_size]
+                    loss, gn = self.step(E_train[:, b], y_train[b])
+                    losses.append(loss); norms.append(gn)
+                    self.history["batch_loss"].append(float(loss))
+                    #Plotting time progress using tqdm
+                    pbar.update(1)
+                    progr = len(self.history["batch_loss"]) / batches_per_epoch
+                    pbar.set_description(f"Epoch {progr:.2f}/{cfg.max_epochs} | Loss: {loss:.4f}")
 
-        for epoch in range(cfg.max_epochs):
-            idx = self.rng.permutation(E_train.shape[1])
-            losses, norms = [], []
-            # Saving loss for every gradient step to see effect of batchsize
-            for s in range(0, len(idx), cfg.batch_size):
-                b = idx[s:s + cfg.batch_size]
-                loss, gn = self.step(E_train[:, b], y_train[b])
-                losses.append(loss); norms.append(gn)
-                self.history["batch_loss"].append(float(loss))
+                epoch_loss = float(np.mean(losses))
+                _, acc = self.evaluate(E_train, y_train)
+                self.history["loss"].append(epoch_loss)
+                self.history["acc"].append(acc)
+                self.history["grad_norm"].append(float(np.mean(norms)))
+                # step index at which this epoch ended, for marking epoch
+                # boundaries when plotting batch_loss
+                self.history["epoch_end_step"].append(len(self.history["batch_loss"]))
 
-            epoch_loss = float(np.mean(losses))
-            _, acc = self.evaluate(E_train, y_train)
-            self.history["loss"].append(epoch_loss)
-            self.history["acc"].append(acc)
-            self.history["grad_norm"].append(float(np.mean(norms)))
-            # step index at which this epoch ended, for marking epoch
-            # boundaries when plotting batch_loss
-            self.history["epoch_end_step"].append(len(self.history["batch_loss"]))
+                if epoch_loss < best_loss - cfg.min_delta:
+                    best_loss, wait = epoch_loss, 0
+                    best_params = (_copy(self.thetas), _copy(self.phis))
+                else:
+                    wait += 1
+                    if wait >= cfg.patience:
+                        break
 
-            if epoch_loss < best_loss - cfg.min_delta:
-                best_loss, wait = epoch_loss, 0
-                best_params = (_copy(self.thetas), _copy(self.phis))
-            else:
-                wait += 1
-                if wait >= cfg.patience:
-                    break
-
-        # keep the best weights, not the last ones (guards a diverging step)
-        self.thetas, self.phis = best_params
-        self.train_time = time.perf_counter() - t0
-        return self.history
+            # keep the best weights, not the last ones (guards a diverging step)
+            self.thetas, self.phis = best_params
+            self.train_time = time.perf_counter() - t0
+            return self.history
 
     def inference_time(self, E, repeats=20):
         """Seconds per single classification.
