@@ -12,23 +12,23 @@ from metrics import confusion_matrix, accuracy
 class TrainConfig:
     """Everything that defines one run. Dumped verbatim into the results."""
     # --- data / encoding ---
-    m_side: int = 10                 # -> N = m_side**2 input channels
+    m_side: int = 10                    # -> N = m_side**2 input channels
     theta_enc: float = 1.0
     normalize_energy: bool = True
-    encoding: str = "amplitude"      # "amplitude" | "phase"
+    encoding: str = "amplitude"         # "amplitude" | "phase"
 
     # --- readout ---
-    detectors: tuple | None = None   # None -> Det 1 @  1/3*N, Det 2 @ 2/3*N
+    detectors: tuple | None = None      # None -> Det 1 @  1/3*N, Det 2 @ 2/3*N
 
     # --- optimization ---
-    loss_kind: str = "mse_norm"
+    loss_kind: str = "mse"
     learning_rate: float = 1e-2
     batch_size: int = 32
-    init: str = "haar"               # "haar" | "random"
+    init: str = "haar"                  # "haar" | "random"
     max_epochs: int = 300
-    patience: int = 20               # epochs without loss improvement
-    min_delta: float = 1e-4          # smallest loss drop counted as progress
-    param_init_seed: int | None = 0
+    patience: int = 1                   # epochs without loss improvement
+    min_delta: float = 1e-4             # smallest loss drop counted as progress
+    param_init_seed: int | None = 0     # for random parameter generation in mesh
 
     # --- hardware imperfections (fixed, not trained) ---
     eta_bs: float = 1.0              # power transmission per beam splitter
@@ -44,7 +44,7 @@ class TrainConfig:
         if self.detectors is None:
             self.detectors = (self.N // 3, 2 * self.N // 3)
 
-
+# Helper-Functions
 def _copy(params):
     """Deep copy of a weight list -- step() updates the arrays in place."""
     return [p.copy() for p in params]
@@ -58,47 +58,46 @@ def _jsonable(o):
 
 class Trainer:
     """Adjoint-based gradient descent on an MZI mesh.
-
-    Only two data sets are used, as specified for the project: the model is
-    trained on E_train, and the accuracy measured there is referred to as
-    the validation accuracy. The test set is held out and evaluated
+    Trainer handling learning in function "fit" for given hyper-parameters.
+    The model is trained on E_train, and the accuracy measured there is referred to as
+    the training accuracy. The test set is held out and evaluated
     once, at the end, via evaluate().
     """
 
-    def __init__(self, mesh, cfg: TrainConfig):
+    def __init__(self, mesh, cfg: TrainConfig): #setting up trainer object
         if mesh.N != cfg.N:
             raise ValueError(f"mesh has N={mesh.N} but cfg.m_side={cfg.m_side} "
                              f"implies N={cfg.N} -- encoding and mesh disagree")
         if max(cfg.detectors) >= mesh.N:
             raise ValueError(f"detector {max(cfg.detectors)} outside N={mesh.N}")
-        self.mesh, self.cfg = mesh, cfg
+        self.mesh, self.cfg = mesh, cfg  #config contains all the used parameters for reproducability
         self.rng = np.random.default_rng(cfg.param_init_seed)
+        #Initiating mesh according to arguments
         init = mesh.init_haar if cfg.init == "haar" else mesh.init_random
         self.thetas, self.phis = init(self.rng)
         self.history = {"loss": [], "acc": [], "grad_norm": [],
                         "batch_loss": [], "epoch_end_step": []}
-        self.train_time = None
-        self.test_acc = None               # set by the caller after evaluate()
+        self.train_time = None              # total time for training
+        self.test_acc = None                # set by the caller after evaluate()
 
     def _layers(self):
-        """Transfer matrices for the current weights. Rebuilt after every
-        update, since the weights change; this is the runtime bottleneck."""
+        """Transfer matrices for the current weights. 
+        Rebuilt after every update, since the weights change"""
         return self.mesh.layer_matrices_separate(
-            self.thetas, self.phis, self.cfg.eta_bs, self.cfg.alpha_fiber)
+            self.thetas, self.phis, self.cfg.eta_bs, self.cfg.alpha_fiber) #potential bottle neck
 
-    def step(self, E_batch, y_batch):
+    def step(self, E_batch, y_batch): #this is one parameter adjustment
         """One gradient step on one minibatch. Returns (loss, gradient norm)."""
         cfg = self.cfg
         d1, d7 = cfg.detectors
         layers = self._layers()
-
+        #according to derivation in report chapter 2.3.4
         fh = forward_history(E_batch, layers)                     # forward fields
         Gam = adjoint_source(fh, y_batch, d1, d7, cfg.loss_kind)  # Gamma_L
         bh = backward_history(Gam, layers)                        # adjoint fields
         g_th, g_ph = gradient(fh, bh, self.mesh.plan)
 
-        # Descent: minus the gradient, element-wise per layer. Never write
-        # "self.thetas -= ...": that is a list, and += on a list extends it.
+        # Descent: minus the gradient, element-wise per layer
         for l in range(len(self.thetas)):
             self.thetas[l] -= cfg.learning_rate * g_th[l]
             self.phis[l]   -= cfg.learning_rate * g_ph[l]
@@ -116,41 +115,45 @@ class Trainer:
         return loss, accuracy(conf)
 
     def fit(self, E_train, y_train):
-        """Train until the loss stops improving or max_epochs is reached.
+        """Training function. Abort is set by patience and min_delta or max_epochs
+        -> If in 'patience' epochs the (training)loss changes less than min_delta, abort
+        -> If max_epochs are reached -> abort
         """
         cfg = self.cfg
         t0 = time.perf_counter()
         best_loss = np.inf
-        best_params = (_copy(self.thetas), _copy(self.phis))
+        best_params = (_copy(self.thetas), _copy(self.phis)) #tracking all time best found parameters
         wait = 0
         # Time tracking using tqdm
         num_samples = E_train.shape[1]
         batches_per_epoch = np.ceil(num_samples / cfg.batch_size) #how many batches per sample
         total_steps = cfg.max_epochs * batches_per_epoch
-        with tqdm(total=total_steps, desc="Starte Training...") as pbar:
-            for epoch in range(cfg.max_epochs):
+        with tqdm(total=total_steps, desc="Starte Training...") as pbar: #Feedback for progress / estimated duration
+            for epoch in range(cfg.max_epochs): #outer loop over epochs
                 idx = self.rng.permutation(E_train.shape[1])
                 losses, norms = [], []
                 # Saving loss for every gradient step to see effect of batchsize
-                for s in range(0, len(idx), cfg.batch_size):
-                    b = idx[s:s + cfg.batch_size]
-                    loss, gn = self.step(E_train[:, b], y_train[b])
-                    losses.append(loss); norms.append(gn)
-                    self.history["batch_loss"].append(float(loss))
+                for s in range(0, len(idx), cfg.batch_size):    #inner loop over batches, last batch can be clipped
+                    b = idx[s:s + cfg.batch_size]               #but np.mean is robust against that case
+                    loss, gn = self.step(E_train[:, b], y_train[b]) # batch loss and gradient for one parameter adjustment
+                    losses.append(loss); norms.append(gn)           #tracking loss
+                    self.history["batch_loss"].append(float(loss))  #""
                     #Plotting time progress using tqdm
-                    pbar.update(1)
+                    pbar.update(1) #for tqdm progress tracking
                     progr = len(self.history["batch_loss"]) / batches_per_epoch
-                    pbar.set_description(f"Epoch {progr:.2f}/{cfg.max_epochs} | Loss: {loss:.4f}")
+                    pbar.set_description(f"Epoch {progr:.2f}/{cfg.max_epochs} | Loss: {loss:.4f}") #return live values into console
 
+                # outer (epoch-) loop
                 epoch_loss = float(np.mean(losses))
-                _, acc = self.evaluate(E_train, y_train)
-                self.history["loss"].append(epoch_loss)
+                _, acc = self.evaluate(E_train, y_train) #tracking epoch accuracy
+                self.history["loss"].append(epoch_loss)  #adding values to history
                 self.history["acc"].append(acc)
                 self.history["grad_norm"].append(float(np.mean(norms)))
                 # step index at which this epoch ended, for marking epoch
                 # boundaries when plotting batch_loss
                 self.history["epoch_end_step"].append(len(self.history["batch_loss"]))
 
+                #Abort criteria
                 if epoch_loss < best_loss - cfg.min_delta:
                     best_loss, wait = epoch_loss, 0
                     best_params = (_copy(self.thetas), _copy(self.phis))
@@ -159,17 +162,14 @@ class Trainer:
                     if wait >= cfg.patience:
                         break
 
-            # keep the best weights, not the last ones (guards a diverging step)
+            # keep the best weights, not the last ones
             self.thetas, self.phis = best_params
             self.train_time = time.perf_counter() - t0
             return self.history
 
     def inference_time(self, E, repeats=20):
-        """Seconds per single classification.
-
-        The transfer matrices are built outside the timed region: on real
-        hardware the weights are physically present in the chip, so building
-        them is simulation overhead and not part of the inference cost.
+        """Returns seconds per single classification.
+        Not regarding transfer matrix building
         """
         layers = self._layers()
         one = E[:, :1]
@@ -177,12 +177,12 @@ class Trainer:
         for _ in range(repeats):
             forward(one, layers)
         return (time.perf_counter() - t0) / repeats
-    # ------------------------------------------------ persistence
+
+    # ------------------------------------------------ persistence---------------------------
     def save(self, path, **extra):
         """Write the run to disk as JSON.
 
-        NumPy arrays are converted to lists.
-        Extra keyword arguments (test_acc, notes, ...) come back as trainer.extra.
+        Extra keyword arguments (notes, ...) come back as trainer.extra
         """
         state = {
             "format": 1,
@@ -200,7 +200,7 @@ class Trainer:
         }
         path = pathlib.Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "x") as f: #if f exists already, throw expection
             json.dump(state, f, indent=2, default=_jsonable)
         return path
 
