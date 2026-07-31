@@ -2,6 +2,7 @@
 init="haar"
 m = 10
 detector_positions = (33, 66)
+values=np.array([1,7])
 
 #Sweep Array:
 sweep=[]                        #<----------------------------------------
