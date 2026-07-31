@@ -18,34 +18,6 @@ def detection(E):
     '''
     return np.abs(E)**2
 
-
-def detection_and_determine_winner(E, det1=0, det2=-1):
-    '''
-    Calculate power of electrical field output at detector ports
-
-    Parameters
-    ----------
-    E : 1D array of type complex
-        Electrical field output of chip.
-    det1 : int, optional
-        Position of detector for 1st digit. The default is 0.
-    det2 : int, optional
-        Position of detector for 2nd digit. The default is -1.
-
-    Returns
-    -------
-    int
-        Highest detected power, 0 for 1st detector and 1 for 2nd given detector position.
-
-    '''
-    I1=np.abs(E[det1])**2
-    I2=np.abs(E[det2])**2
-    
-    if I1 > I2:
-        return 0
-    else:
-        return 1
-
 def predict(E, det1=0, det7=-1):
     '''
     Returns winner following >>winner takes it all<< comparing detectors of index det1 and det7

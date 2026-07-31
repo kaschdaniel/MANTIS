@@ -306,23 +306,3 @@ class MZIMesh:
             mats.append(fiber_amp * M_theta)   # Fiber-Verlust: getrennter Diagonalfaktor
             mats.append(fiber_amp * M_phi)
         return mats
-
-    # -------------------------------------------------- Propagation
-    def forward(self, E_in, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
-        """E_in: (N,) fuer ein Sample oder (N, B) fuer einen Batch.
-        Beides funktioniert ohne Sonderfall, weil M @ E in NumPy
-        fuer Vektoren und Matrizen dasselbe tut."""
-        E = np.asarray(E_in, dtype=np.complex128)
-        for Ml in self.layer_matrices(thetas, phis, eta_bs, alpha_fiber):
-            E = Ml @ E
-        return E
-
-    def forward_history(self, E_in, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
-        """Wie forward(), gibt aber alle Zwischenzustaende zurueck.
-        Rueckgabe: Liste der Laenge L+1, Eintrag l ist das Feld VOR Layer l."""
-        E = np.asarray(E_in, dtype=np.complex128)
-        hist = [E.copy()]
-        for Ml in self.layer_matrices(thetas, phis, eta_bs, alpha_fiber):
-            E = Ml @ E
-            hist.append(E.copy())
-        return hist

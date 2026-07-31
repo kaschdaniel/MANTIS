@@ -229,16 +229,15 @@ def main():
     alpha_fiber = 0.0
 
     # Linear regression
-    # print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
     # linear_regression_sweep(values, number, theta_enc,
     #                         seed, balanced, split_ratio)
 
     # Training with standard_parameters
-    # standard_training(values, number, m, theta_enc, norm_energy,
-    #                   seed, balanced, split_ratio, encoding,
-    #                   detectors, loss_kind, learning_rate, batch_size,
-    #                   init, max_epochs, patience, min_delta,
-    #                   eta_bs, alpha_fiber, verbose)
+    standard_training(values, number, m, theta_enc, norm_energy,
+                      seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose)
 
 
     # training_compare_initialization(values, number, m, theta_enc, norm_energy,
