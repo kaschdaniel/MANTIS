@@ -200,7 +200,7 @@ class Trainer:
         }
         path = pathlib.Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "x") as f: #if file exists already, throw exception
             json.dump(state, f, indent=2, default=_jsonable)
         return path
 
