@@ -10,13 +10,15 @@ from matplotlib.cm import ScalarMappable
 #####################################################################################################
 
 def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
-                       cmap="inferno", log=False):
+                       cmap="inferno", log=False, label_fontsize=16, tick_fontsize=14):
     """Feldintensitaet |E|^2 als Heatmap (Kanal ueber Layer).
 
     intensities : (L+1, N), z.B. np.abs(forward_history(E_in, layers))**2
                   Zeile s = Feld nach s Layern (s=0 = Eingang).
     detectors   : Kanalindizes, am rechten Rand markiert.
     log         : logarithmische Farbskala bei stark lokalisiertem Feld.
+    label_fontsize : Schriftgröße der Achsen- und Colorbar-Beschriftungen.
+    tick_fontsize  : Schriftgröße der Zahlen (Ticks) an den Achsen.
     """
     I = np.asarray(intensities, dtype=float)
     if I.ndim != 2:
@@ -35,16 +37,25 @@ def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
 
     for d in (detectors or []):
         ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5)
-        ax.text(L1 +0.5, d, f"det {d}", va="center",rotation='vertical', fontsize=12, color="forestgreen", clip_on=False)
-
-    ax.set_xlabel("layer",fontsize=12)
-    ax.set_ylabel(r"channel $k$",fontsize=12)
-    ax.set_title(title or r"field intensity $|E|^2$")
+        # Den Text für die Detektoren binde ich hier auch an label_fontsize
+        ax.text(L1 + 0.5, d, f"det {d}", va="center", rotation='vertical', 
+                fontsize=label_fontsize, color="forestgreen", clip_on=False)
+    
+    # labelling axes
+    ax.set_xlabel("layer", fontsize=label_fontsize)
+    ax.set_ylabel(r"channel $k$", fontsize=label_fontsize)
+    ax.set_title(title or r"field intensity $|E|^2$", fontsize=label_fontsize + 1)
+    
+    # ticks
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
+    
+    # colorbar and ticks
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=13)
+    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=label_fontsize)
+    cb.ax.tick_params(labelsize=tick_fontsize)
+    
     fig.tight_layout()
     return fig, ax
-
 
 def plot_intensity_map_with_histogram(I, det1, det7, Y,
                                       cmap="inferno", log=False,

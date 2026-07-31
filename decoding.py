@@ -154,7 +154,7 @@ def softmax_ce(s1, s7, t1, t7, eps=1e-12):
     
     return per_sample, grad_s1, grad_s7
 
-LOSS_KINDS = {"mse": mse, "mse_norm": mse_norm, "softmax": softmax_ce}
+LOSS_KINDS = {"mse": mse, "softmax": softmax_ce}
 
 
 
