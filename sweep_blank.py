@@ -34,4 +34,4 @@ for s, t in zip(sweep, trainers):
           f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
 #%%%
-plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
+fig.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
