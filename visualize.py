@@ -318,7 +318,7 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
             return (np.arange(n) + 1) / spe
         return np.arange(1, n + 1)                   # epoch-level curves
 
-    fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys), 3.5),
+    fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys)+1, 3.5),
                              squeeze=False)
     axes = axes[0]
     cmap = plt.get_cmap("viridis")
@@ -326,7 +326,7 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
         col = cmap(i / max(len(hists) - 1, 1)) if len(hists) > 1 else "tab:blue"
         for ax, key in zip(axes, keys):
             lw = 0.9 if key == "batch_loss" else 1.5
-            ax.plot(x_for(h, key, tt), h[key], color=col, lw=lw, label=lab)
+            ax.plot(x_for(h, key, tt), h[key], color=col, lw=lw, label=lab, marker="s", markersize="3")
 
     xlabel = "wall-clock time (s)" if x_axis == "time" else "epoch"
     for ax, key in zip(axes, keys):
@@ -338,6 +338,9 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
             #ax.axhline(0.5, color="0.6", ls=":", zorder=0)
             #ax.set_ylim(0.45, 1.02)
     if len(hists) > 1:
-        axes[0].legend(fontsize=8)
+        # loc="center right" nimmt die rechte Kante der Legende als Anker
+        # bbox_to_anchor=(-0.15, 0.5) schiebt diesen Anker nach links außen und mittig in die Höhe
+        axes[0].legend(fontsize=8, loc="center right", bbox_to_anchor=(-0.4, 0.5))
+        
     fig.tight_layout()
     return fig, axes
