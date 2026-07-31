@@ -135,11 +135,33 @@ print(f"inference: {trainer.inference_time(E_test)*1e3:.2f} ms/sample")
 
 fig, _ = plot_training(trainer)
 
+#%%Haar vs random
+m = 10
+detector_positions = (33, 66)
+
+initial=["haar", "random"]
+trainers = []
+for i in initial:
+    cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
+            detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=64,
+                      init=i, max_epochs=35, patience=2, min_delta=1e-4, 
+                      param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
+    E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
+                                      theta_enc=1, normalize_energy=True,
+                                      seed=1550, balanced=True, verbose=True)
+    t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
+    t.fit(E_tr, y_tr)
+    t.test_acc = t.evaluate(E_te, y_te)[1]  
+    t.save(f"results/initialization/{i}.json", test_acc=t.test_acc)
+    trainers.append(t)
+
+#%%%
+fig, _ = plot_training(trainers, initial, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label="Init.")
 
 
 #%%% Test for batch sizes
 
-batch_sizes = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256, 512])
+batch_sizes = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
 
 m = 10
 detector_positions = (33, 66)
@@ -164,13 +186,14 @@ fig, _ = plot_training(trainers, batch_sizes, keys=("batch_loss", "loss", "acc",
 
 #%%% Fixed ratio of batch_size and learning_rate
 learning_rate_fixed = batch_sizes*0.1
-batch_sizes = [16, 2]
+batch_sizes = [16]
+
 
 trainers_fixed = []
 for size, rate in zip(batch_sizes, learning_rate_fixed):
     cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
             detectors=detector_positions, loss_kind='mse', learning_rate=rate, batch_size=size,
-                      init="haar", max_epochs=35, patience=2, min_delta=1e-4, 
+                      init="random", max_epochs=35, patience=2, min_delta=1e-4, 
                       param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
     E_tr, y_tr, E_te, y_te = get_data(values, number=200, m_side=m,
                                       theta_enc=1, normalize_energy=True,
