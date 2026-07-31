@@ -193,8 +193,15 @@ class Trainer:
         path = pathlib.Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
-            json.dump(state, f, indent=2)
+            json.dump(state, f, indent=2, default=_jsonable)
         return path
+
+    def _jsonable(o):
+        """Convert NumPy scalars/arrays that json does not know about."""
+        if isinstance(o, np.integer):  return int(o)
+        if isinstance(o, np.floating): return float(o)
+        if isinstance(o, np.ndarray):  return o.tolist()
+        raise TypeError(f"not JSON serializable: {type(o)}")
 
     @classmethod
     def load(cls, path):
