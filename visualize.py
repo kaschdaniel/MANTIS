@@ -268,22 +268,28 @@ def plot_layers(layers, mode: str = "Abs"):
 #####################################################################################################
 
 def plot_training(trainers, sweep_values=None, sweep_label="m",
-                  keys=("loss", "acc", "grad_norm")):
+                  keys=("loss", "acc", "grad_norm"), x_axis="epoch"):
     """Learning curves of one Trainer or of several runs of a sweep.
 
-    trainers     : a single Trainer, or a list of Trainers (one per sweep
-                   point). Only .history is read, so a plain history dict
-                   works as well.
+    trainers     : a single Trainer, or a list of Trainers. Only .history is
+                   read; for x_axis="time" the .train_time attribute is used too.
     sweep_values : values of the swept parameter, same length as trainers.
                    None -> runs are numbered instead.
     sweep_label  : name of the swept parameter, used in the legend.
     keys         : which history entries to plot, one panel each.
+    x_axis       : "epoch" -> x is the epoch index (batch_loss: gradient step)
+                   "time"  -> x is wall-clock seconds, using train_time spread
+                              evenly over the recorded points. Lets runs with
+                              different per-step cost be compared on equal footing.
 
     Returns (fig, axes).
     """
     if not isinstance(trainers, (list, tuple, np.ndarray)):
         trainers = [trainers]                       # single run
     hists = [t.history if hasattr(t, "history") else t for t in trainers]
+    # train_time only needed (and only available) for the time axis
+    times = [getattr(t, "train_time", None) for t in trainers] \
+        if x_axis == "time" else [None] * len(hists)
 
     if sweep_values is None:
         labels = [f"run {i}" for i in range(len(hists))]
@@ -294,39 +300,43 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
         labels = [f"{sweep_label} = {v}" for v in sweep_values]
 
     log_scale = {"loss", "grad_norm", "batch_loss"}
-    axis_label = {"loss": "Training loss per epoch", "acc": "Accuracy",
-                  "grad_norm": r"$\|\nabla\|_2$", "batch_loss": "Training loss per batch"}#Also declaring batch_loss as training loss
-    x_label = {"batch_loss": "gradient step"}
+    axis_label = {"loss": "training loss", "acc": "accuracy",
+                  "grad_norm": r"$\|\nabla\|_2$", "batch_loss": "batch loss"}
+
+    def x_for(h, key, tt):
+        """x coordinates for one curve of one run."""
+        n = len(h[key])
+        if x_axis == "time":
+            if tt is None:
+                raise ValueError("x_axis='time' needs trainers with .train_time, "
+                                 "not raw history dicts")
+            # spread total time evenly over the points of this curve
+            return np.linspace(tt / n, tt, n)
+        # epoch axis: batch_loss is per gradient step, rescaled to epochs
+        if key == "batch_loss":
+            spe = h["epoch_end_step"][0] if h.get("epoch_end_step") else 1
+            return (np.arange(n) + 1) / spe
+        return np.arange(1, n + 1)                   # epoch-level curves
 
     fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys), 3.5),
                              squeeze=False)
     axes = axes[0]
     cmap = plt.get_cmap("viridis")
-    for i, (h, lab) in enumerate(zip(hists, labels)):
+    for i, (h, lab, tt) in enumerate(zip(hists, labels, times)):
         col = cmap(i / max(len(hists) - 1, 1)) if len(hists) > 1 else "tab:blue"
         for ax, key in zip(axes, keys):
-            if key == "batch_loss":
-                # x in epoch units: fractional positions between integers
-                spe = h["epoch_end_step"][0] if h.get("epoch_end_step") else 1
-                x = (np.arange(len(h[key])) + 1) / spe
-                ax.plot(x, h[key], color=col, lw=0.9, marker="o", markersize=3, label=lab)
-            else:
-                x_epochs = np.arange(1, len(h[key]) + 1)
-                ax.plot(x_epochs,h[key], color=col, lw=1.5, marker="o", markersize=3, label=lab)
+            lw = 0.9 if key == "batch_loss" else 1.5
+            ax.plot(x_for(h, key, tt), h[key], color=col, lw=lw, label=lab)
 
+    xlabel = "wall-clock time (s)" if x_axis == "time" else "epoch"
     for ax, key in zip(axes, keys):
-        ax.set_xlabel("Epoch")
+        ax.set_xlabel(xlabel)
         ax.set_ylabel(axis_label.get(key, key))
         if key in log_scale:
             ax.set_yscale("log")
         #if key == "acc":
-        #    ax.axhline(0.5, color="0.6", ls=":", zorder=0)
-        #    ax.set_ylim(0.45, 1.02)
-        # epoch boundaries only for a single run, otherwise too cluttered
-        if key == "batch_loss" and len(hists) == 1:
-            spe = hists[0]["epoch_end_step"][0]
-            for s in hists[0]["epoch_end_step"]:
-                ax.axvline(s / spe, color="0.85", lw=0.5, zorder=0)
+            #ax.axhline(0.5, color="0.6", ls=":", zorder=0)
+            #ax.set_ylim(0.45, 1.02)
     if len(hists) > 1:
         axes[0].legend(fontsize=8)
     fig.tight_layout()
