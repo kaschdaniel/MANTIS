@@ -27,10 +27,10 @@ for s in sweep:
 fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
 
 for s, t in zip(sweep, trainers):
-    print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
+    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d}"
           f"loss={t.history['loss'][-1]:.5f}  "
           f"train acc={t.history['acc'][-1]:.4f}  "
           f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
 #%%%
-plt.savefig("results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
+plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
