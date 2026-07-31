@@ -11,9 +11,53 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.datasets import mnist
 
-
 def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
     return linear_regression(E_train, Y_train, E_test, Y_test)[2]
+
+
+def linear_regression_sweep(values = np.array([1,7]), number = 2000, theta_enc = 1, 
+                            seed = 1550, balanced = True, split_ratio = 0.8):
+    # Linear regression for different values of m with and without normalization
+    norm_energy = True
+    #Sweep over ms
+    ms = [1,2,4,6,8,10,16,20,28]
+    acc_normed=[]
+    for m_side in ms:
+        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                            theta_enc, norm_energy, seed, balanced, split_ratio) 
+        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+
+    print(acc_normed)
+    plt.plot(ms,acc_normed,marker="o", markersize=2, label="w/ energy normalization")
+
+    #Without normalized Energy
+    norm_energy = False      #Bool for if energy of encoded image should be normalized or not
+    # E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+    #                         theta_enc, norm_energy, seed, balanced, split_ratio)
+    # print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+    #_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
+    #print(acc)
+
+    #Sweep over ms
+    ms = [1,2,4,6,8,10,16,20,28]
+    acc_not_normed=[]
+    for m_side in ms:
+        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                            theta_enc, norm_energy, seed, balanced, split_ratio) 
+        acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+
+    print(acc_not_normed)
+    plt.plot(ms,acc_not_normed,marker="o", markersize=2, label="w/o energy normalization")
+    plt.xlabel("Side length of MNIST Datasets")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(alpha=0.2)
+    plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png", dpi=600, bbox_inches='tight')
+    #%%% print max. accuracy for both linear regression methods
+    print("Accuracy results of linear regression")
+    print(f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
+    print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
+
 
 
 def main(): 
@@ -29,20 +73,23 @@ def main():
     split_ratio = 0.8       #Sets training-sample proportion
 
     E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                            theta_enc, norm_energy, seed, balanced, split_ratio)   
+                            theta_enc, norm_energy, seed, balanced, split_ratio) 
     
     
     # Linear regression
-    print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+    #print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+    linear_regression_sweep(values, number, theta_enc, 
+                                seed, balanced, split_ratio)
     
     
+main()
 
 #%% Begin of relevant code
 
 #%%% Load and encode data (identical for all tests)
 values = np.array([1,7])#figures you want from the mnist dataset
 number = 2000            #Sets number of samples you want to get in total
-m_side = 10             #side length (pixel) of mnist image after downsampling
+m = 10             #side length (pixel) of mnist image after downsampling
 theta_enc = 1           #mysterious hyper parameter for amplitude scaling
 norm_energy = True      #Bool for if energy of encoded image should be normalized or not
 seed = 1550             #Random seed to control random choice of number -pictures out of the available ones, 
@@ -55,68 +102,16 @@ E_train, Y_train, E_test, Y_test = get_data(values, number, m_side,
 #E_* are the flattened arrays of the encoded mnist images (complex valued), 
 #Y_* are the referring labels
 
-norm_energy = False 
-E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                    theta_enc, norm_energy, seed, balanced, split_ratio) 
 
-
-#%%% Linear regression
-
-print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-
-#_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
-#print(acc)
-
-
-#Sweep over ms
-ms = [1,2,4,6,8,10,16,20,28]
-acc_normed=[]
-for m_side in ms:
-    E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                        theta_enc, norm_energy, seed, balanced, split_ratio) 
-    acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-
-print(acc_normed)
-plt.plot(ms,acc_normed,marker="o", markersize=2, label="w/ energy normalization")
-
-#Without normalized Energy
-norm_energy = False      #Bool for if energy of encoded image should be normalized or not
-E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                        theta_enc, norm_energy, seed, balanced, split_ratio)
-print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-#_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
-#print(acc)
-
-#Sweep over ms
-ms = [1,2,4,6,8,10,16,20,28]
-acc_not_normed=[]
-for m_side in ms:
-    E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                        theta_enc, norm_energy, seed, balanced, split_ratio) 
-    acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-
-print(acc_not_normed)
-plt.plot(ms,acc_not_normed,marker="o", markersize=2, label="w/o energy normalization")
-plt.xlabel("Side length of MNIST Datasets")
-plt.ylabel("Accuracy")
-plt.legend()
-plt.grid(alpha=0.2)
-plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png", dpi=600, bbox_inches='tight')
-#%%% print max. accuracy for both linear regression methods
-print("Accuracy results of linear regression")
-print(f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
-print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
 
 #%%% Standard Training
-m = 10
 detector_positions = (33, 66)
 
 
 ### CONFIG + MESH
 cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-        detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=64,
-                  init="haar", max_epochs=10, patience=20, min_delta=1e-4, 
+        detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=1,
+                  init="haar", max_epochs=1, patience=20, min_delta=1e-4, 
                   param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
 mesh = MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N))
 
@@ -133,7 +128,6 @@ print(f"inference: {trainer.inference_time(E_test)*1e3:.2f} ms/sample")
 fig, _ = plot_training(trainer)
 
 #%%Haar vs random
-m = 10
 detector_positions = (33, 66)
 
 initial=["haar", "random"]
@@ -159,7 +153,6 @@ fig, _ = plot_training(trainers, initial, keys=("batch_loss", "loss", "acc", "gr
 
 batch_sizes = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
 
-m = 10
 detector_positions = (33, 66)
 
 trainers = []
@@ -183,7 +176,6 @@ fig, _ = plot_training(trainers, batch_sizes, keys=("batch_loss", "loss", "acc",
 
 #Standard variables
 init="haar"
-m = 10
 detector_positions = (33, 66)
 
 #Sweep Array:
@@ -222,7 +214,6 @@ plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='ti
 
 #Standard variables
 init="haar"
-m = 10
 detector_positions = (33, 66)
 
 #Sweep Array:
