@@ -35,13 +35,13 @@ def plot_intensity_map(intensities, detectors=None, ax=None, title=None,
 
     for d in (detectors or []):
         ax.plot(L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5)
-        ax.text(L1 +0.5, d, f"det {d}", va="center",rotation='vertical', fontsize=8, color="forestgreen", clip_on=False)
+        ax.text(L1 +0.5, d, f"det {d}", va="center",rotation='vertical', fontsize=12, color="forestgreen", clip_on=False)
 
-    ax.set_xlabel("layer  (0 = input field)")
-    ax.set_ylabel(r"channel $k$")
+    ax.set_xlabel("layer",fontsize=12)
+    ax.set_ylabel(r"channel $k$",fontsize=12)
     ax.set_title(title or r"field intensity $|E|^2$")
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
+    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=13)
     fig.tight_layout()
     return fig, ax
 
