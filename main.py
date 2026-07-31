@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 from keras.datasets import mnist
 
 
-def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
-    return linear_regression(E_train, Y_train, E_test, Y_test)[2]
-
 
 def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
                             seed=1550, balanced=True, split_ratio=0.8):
+    def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
+        return linear_regression(E_train, Y_train, E_test, Y_test)[2]
+    
     # Linear regression for different values of m with and without normalization
     norm_energy = True
     # Sweep over ms
@@ -122,15 +122,14 @@ def training_compare_initialization(values, number, m, theta_enc, normalize_ener
         "batch_loss", "loss", "acc", "grad_norm"), sweep_label="Init.")
 
 
-def training_sweep_batch_size(values, number, m, theta_enc, normalize_energy,
+def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normalize_energy,
                       param_init_seed, balanced, split_ratio, encoding,
                       detectors, loss_kind, learning_rate, batch_size,
                       init, max_epochs, patience, min_delta,
                       eta_bs, alpha_fiber, verbose):
     
-    # Sweep Array:
-    sweep = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
-    sweep_label = "batch_size"
+    sweep = sweep_param[0]
+    sweep_label = sweep_param[1]
 
     # Perform training
     trainers = []
@@ -162,15 +161,14 @@ def training_sweep_batch_size(values, number, m, theta_enc, normalize_energy,
                 dpi=600, bbox_inches='tight')
 
 
-def training_sweep_learning_rate(values, number, m, theta_enc, normalize_energy,
+def training_sweep_learning_rate(sweep_param, values, number, m, theta_enc, normalize_energy,
                       param_init_seed, balanced, split_ratio, encoding,
                       detectors, loss_kind, learning_rate, batch_size,
                       init, max_epochs, patience, min_delta,
                       eta_bs, alpha_fiber, verbose):
     
-    # Sweep Array:
-    sweep = [0.01, 0.03, 0.1, 0.3, 1.0]
-    sweep_label = "learning_rate"
+    sweep = sweep_param[0]
+    sweep_label = sweep_param[1]
 
     # Perform training
     trainers = []
@@ -206,10 +204,9 @@ def training_sweep_learning_rate(values, number, m, theta_enc, normalize_energy,
 
 def main():
     # Set standard parameters
-    values = np.array([1, 7])  # figures you want from the mnist dataset
+    values = np.array([1, 7])  # digits you want from the mnist dataset
     number = 2000  # Sets number of samples you want to get in total
     m = 10  # side length (pixel) of mnist image after downsampling
-    # mysterious hyper parameter for amplitude scaling
     norm_energy = True  # Bool for if energy of encoded image should be normalized or not
     seed = 1550  # Random seed to control random choice of number -pictures out of the available ones,
     # seed = None leads to random results for each iteration
@@ -250,13 +247,17 @@ def main():
     #                       init, max_epochs, patience, min_delta,
     #                       eta_bs, alpha_fiber, verbose)
     
-    training_sweep_batch_size(values, number, m, theta_enc, norm_energy,
-                          seed, balanced, split_ratio, encoding,
-                          detectors, loss_kind, learning_rate, batch_size,
-                          init, max_epochs, patience, min_delta,
-                          eta_bs, alpha_fiber, verbose)
+    # sweep = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
+    # sweep_label = "batch_size"
+    # training_sweep_batch_size((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
+    #                       seed, balanced, split_ratio, encoding,
+    #                       detectors, loss_kind, learning_rate, batch_size,
+    #                       init, max_epochs, patience, min_delta,
+    #                       eta_bs, alpha_fiber, verbose)
     
-    # training_sweep_learning_rate(alues, number, m, theta_enc, norm_energy,
+    # sweep = [0.01, 0.03, 0.1, 0.3, 1.0]
+    # sweep_label = "learning_rate"
+    # training_sweep_learning_rate((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
     #                       seed, balanced, split_ratio, encoding,
     #                       detectors, loss_kind, learning_rate, batch_size,
     #                       init, max_epochs, patience, min_delta,
