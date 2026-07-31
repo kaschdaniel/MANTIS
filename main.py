@@ -11,65 +11,74 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.datasets import mnist
 
+
 def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
     return linear_regression(E_train, Y_train, E_test, Y_test)[2]
 
 
-def linear_regression_sweep(values = np.array([1,7]), number = 2000, theta_enc = 1, 
-                            seed = 1550, balanced = True, split_ratio = 0.8):
+def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
+                            seed=1550, balanced=True, split_ratio=0.8):
     # Linear regression for different values of m with and without normalization
     norm_energy = True
-    #Sweep over ms
-    ms = [1,2,4,6,8,10,16,20,28]
-    acc_normed=[]
+    # Sweep over ms
+    ms = [1, 2, 4, 6, 8, 10, 16, 20, 28]
+    acc_normed = []
     for m_side in ms:
-        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                            theta_enc, norm_energy, seed, balanced, split_ratio) 
-        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side,
+                                                    theta_enc, norm_energy, seed, balanced, split_ratio)
+        acc_normed.append(accuracy_of_linear_regression(
+            E_train, Y_train, E_test, Y_test))
 
     print(acc_normed)
-    plt.plot(ms,acc_normed,marker="o", markersize=2, label="w/ energy normalization")
+    plt.plot(ms, acc_normed, marker="o", markersize=2,
+             label="w/ energy normalization")
 
-    #Without normalized Energy
+    # Without normalized Energy
     norm_energy = False
-    
-    #Sweep over ms
-    ms = [1,2,4,6,8,10,16,20,28]
-    acc_not_normed=[]
+
+    # Sweep over ms
+    ms = [1, 2, 4, 6, 8, 10, 16, 20, 28]
+    acc_not_normed = []
     for m_side in ms:
-        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
-                            theta_enc, norm_energy, seed, balanced, split_ratio) 
-        acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+        E_train, Y_train, E_test, Y_test = get_data(values, number, m_side,
+                                                    theta_enc, norm_energy, seed, balanced, split_ratio)
+        acc_not_normed.append(accuracy_of_linear_regression(
+            E_train, Y_train, E_test, Y_test))
 
     print(acc_not_normed)
-    plt.plot(ms,acc_not_normed,marker="o", markersize=2, label="w/o energy normalization")
+    plt.plot(ms, acc_not_normed, marker="o", markersize=2,
+             label="w/o energy normalization")
     plt.xlabel("Side length of MNIST Datasets")
     plt.ylabel("Accuracy")
     plt.legend()
     plt.grid(alpha=0.2)
-    plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png", dpi=600, bbox_inches='tight')
-    #%%% print max. accuracy for both linear regression methods
+    plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png",
+                dpi=600, bbox_inches='tight')
+    # %%% print max. accuracy for both linear regression methods
     print("Accuracy results of linear regression")
-    print(f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
-    print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
+    print(
+        f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
+    print(
+        f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
 
-def standard_training(values, number, m, theta_enc, normalize_energy, 
-                      param_init_seed, balanced, split_ratio, encoding, 
-        detectors, loss_kind, learning_rate, batch_size,
-        init, max_epochs, patience, min_delta, 
-        eta_bs, alpha_fiber):
-    
+
+def standard_training(values, number, m, theta_enc, normalize_energy,
+                      param_init_seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose):
+
     N = m**2
-    
+
     # Load and encode data (identical for all tests)
-    E_train, Y_train, E_test, Y_test = get_data(values, number, m, 
-                            theta_enc, normalize_energy, seed, balanced, split_ratio)
-    
-    ### CONFIG + MESH
-    cfg = TrainConfig(m, theta_enc, normalize_energy, encoding, 
-            detectors, loss_kind, learning_rate, batch_size,
-            init, max_epochs, patience, min_delta, 
-            param_init_seed, eta_bs, alpha_fiber)
+    E_train, Y_train, E_test, Y_test = get_data(values, number, m,
+                                                theta_enc, normalize_energy, param_init_seed, balanced, split_ratio, verbose)
+
+    # CONFIG + MESH
+    cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      param_init_seed, eta_bs, alpha_fiber)
     mesh = MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N))
 
     print(cfg)
@@ -85,375 +94,173 @@ def standard_training(values, number, m, theta_enc, normalize_energy,
     fig, _ = plot_training(trainer)
 
 
-
-
-
-
-
-
-
-def training_compare_initialization():
-    detector_positions = (33, 66)
+def training_compare_initialization(values, number, m, theta_enc, normalize_energy,
+                      param_init_seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose):
     
-    initial=["haar", "random"]
+    N = m**2
+
+    initial = ["haar", "random"]
     trainers = []
     for i in initial:
-        cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-                detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=64,
-                          init=i, max_epochs=35, patience=2, min_delta=1e-4, 
-                          param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-        E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                          theta_enc=1, normalize_energy=True,
-                                          seed=1550, balanced=True, verbose=True)
+        cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
+                          detectors, loss_kind, learning_rate, batch_size,
+                          i, max_epochs, patience, min_delta,
+                          param_init_seed, eta_bs, alpha_fiber)
+        E_tr, y_tr, E_te, y_te = get_data(values, number, m,
+                                          theta_enc, normalize_energy,
+                                          param_init_seed, verbose)
         t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
         t.fit(E_tr, y_tr)
-        t.test_acc = t.evaluate(E_te, y_te)[1]  
+        t.test_acc = t.evaluate(E_te, y_te)[1]
         t.save(f"results/initialization/{i}.json", test_acc=t.test_acc)
         trainers.append(t)
-    
-    fig, _ = plot_training(trainers, initial, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label="Init.")
-    
 
-def training_sweep_batch_sizes():
-    #%%% Test for batch sizes
+    fig, _ = plot_training(trainers, initial, keys=(
+        "batch_loss", "loss", "acc", "grad_norm"), sweep_label="Init.")
+
+
+def training_sweep_batch_size(values, number, m, theta_enc, normalize_energy,
+                      param_init_seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose):
     
-    batch_sizes = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
-    
-    detector_positions = (33, 66)
-    
-    trainers = []
-    for size in batch_sizes:
-        cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-                detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=size,
-                          init="haar", max_epochs=35, patience=2, min_delta=1e-4, 
-                          param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-        E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                          theta_enc=1, normalize_energy=True,
-                                          seed=1550, balanced=True, verbose=True)
-        t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-        t.fit(E_tr, y_tr)
-        t.test_acc = t.evaluate(E_te, y_te)[1]  
-        t.save(f"results/batch_size/{size}.json", test_acc=t.test_acc)
-        trainers.append(t)
-        
-    #%%%
-    fig, _ = plot_training(trainers, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
-    #%%% Sweep over batch sizes
-    
-    #Standard variables
-    init="haar"
-    detector_positions = (33, 66)
-    
-    #Sweep Array:
-    sweep=np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])                        
-    sweep_label="batch_size"                  
-    
-    #Perform training
+    # Sweep Array:
+    sweep = np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])
+    sweep_label = "batch_size"
+
+    # Perform training
     trainers = []
     for s in sweep:
-        cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-                detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=s,
-                          init=init, max_epochs=35, patience=2, min_delta=1e-4,     #patience=2 und min_delta=1e-4 hat sich für mich jetzt gut ergeben, vielleicht sogar nur 1e-3
-                          param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-        E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                          theta_enc=1, normalize_energy=True,
-                                          seed=1550, balanced=True, verbose=True)
+        cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
+                          detectors, loss_kind, learning_rate, s,
+                          init, max_epochs, patience, min_delta,
+                          param_init_seed, eta_bs, alpha_fiber)
+        E_tr, y_tr, E_te, y_te = get_data(values, number, m,
+                                          theta_enc, normalize_energy,
+                                          param_init_seed, verbose)
         t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
         t.fit(E_tr, y_tr)
-        t.test_acc = t.evaluate(E_te, y_te)[1]  
+        t.test_acc = t.evaluate(E_te, y_te)[1]
         t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
         trainers.append(t)
-    
-    #Plot trainingresults
-    fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
-    
+
+    # Plot trainingresults
+    fig, _ = plot_training(trainers, sweep, keys=(
+        "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
+
     for s, t in zip(sweep, trainers):
         print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
               f"loss={t.history['loss'][-1]:.5f}  "
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
-    
-    #%%%
-    plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
+
+    plt.savefig(f"results/{sweep_label}/plot_training.png",
+                dpi=600, bbox_inches='tight')
 
 
-def training_sweep_learning_rate():
-    #%%% Sweep over learning rate
+def training_sweep_learning_rate(values, number, m, theta_enc, normalize_energy,
+                      param_init_seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose):
     
-    #Standard variables
-    init="haar"
-    detector_positions = (33, 66)
-    
-    #Sweep Array:
-    sweep = [0.01, 0.03, 0.1, 0.3, 1.0]                        
-    sweep_label="learning_rate"                  
-    
-    #Perform training
+    # Sweep Array:
+    sweep = [0.01, 0.03, 0.1, 0.3, 1.0]
+    sweep_label = "learning_rate"
+
+    # Perform training
     trainers = []
     for s in sweep:
-        cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-                detectors=detector_positions, loss_kind='mse', learning_rate=s, batch_size=64,
-                          init=init, max_epochs=35, patience=5, min_delta=1e-4,     #patience=2 und min_delta=1e-4 hat sich für mich jetzt gut ergeben, vielleicht sogar nur 1e-3
-                          param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-        E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                          theta_enc=1, normalize_energy=True,
-                                          seed=1550, balanced=True, verbose=True)
+        cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
+                          detectors, loss_kind, s, batch_size,
+                          init, max_epochs, patience, min_delta,
+                          param_init_seed, eta_bs, alpha_fiber)
+        E_tr, y_tr, E_te, y_te = get_data(values, number, m,
+                                                    theta_enc, normalize_energy, param_init_seed, balanced, split_ratio, verbose)
         t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
         t.fit(E_tr, y_tr)
-        t.test_acc = t.evaluate(E_te, y_te)[1]  
+        t.test_acc = t.evaluate(E_te, y_te)[1]
         t.save(f"results/{sweep_label}/{s:.3f}.json", test_acc=t.test_acc)
         trainers.append(t)
-    
-    #Plot trainingresults
-    fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
-    
+
+    # Plot training results
+    fig, _ = plot_training(trainers, sweep, keys=(
+        "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
+
     for s, t in zip(sweep, trainers):
         print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d}"
               f"loss={t.history['loss'][-1]:.5f}  "
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
-    
-    #%%%
-    plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
 
-def whatever():
-    #%%% Fixed ratio of batch_size and learning_rate
-    learning_rate_fixed = batch_sizes*0.1
-    batch_sizes = [16]
-    
-    
-    trainers_fixed = []
-    for size, rate in zip(batch_sizes, learning_rate_fixed):
-        cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-                detectors=detector_positions, loss_kind='mse', learning_rate=rate, batch_size=size,
-                          init="random", max_epochs=35, patience=2, min_delta=1e-4, 
-                          param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-        E_tr, y_tr, E_te, y_te = get_data(values, number=200, m_side=m,
-                                          theta_enc=1, normalize_energy=True,
-                                          seed=1550, balanced=True, verbose=True)
-        t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-        t.fit(E_tr, y_tr)
-        t.test_acc_fixed = t.evaluate(E_te, y_te)[1]      
-        trainers_fixed.append(t)
-    
-    #%%%
-    fig, _ = plot_training(trainers_fixed, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
-    
+    plt.savefig(f"results/{sweep_label}/plot_training.png",
+                dpi=600, bbox_inches='tight')
 
 
 
 ###############################################################################
 
-def main(): 
+def main():
     # Set standard parameters
-    values = np.array([1,7])#figures you want from the mnist dataset
-    number = 2000            #Sets number of samples you want to get in total
-    m = 10             #side length (pixel) of mnist image after downsampling
-             #mysterious hyper parameter for amplitude scaling
-    norm_energy = True      #Bool for if energy of encoded image should be normalized or not
-    seed = 1550             #Random seed to control random choice of number -pictures out of the available ones, 
-                            #seed = None leads to random results for each iteration
-    balanced = True         #Enforcing equality of classes
-    split_ratio = 0.8       #Sets training-sample proportion
-    
+    values = np.array([1, 7])  # figures you want from the mnist dataset
+    number = 2000  # Sets number of samples you want to get in total
+    m = 10  # side length (pixel) of mnist image after downsampling
+    # mysterious hyper parameter for amplitude scaling
+    norm_energy = True  # Bool for if energy of encoded image should be normalized or not
+    seed = 1550  # Random seed to control random choice of number -pictures out of the available ones,
+    # seed = None leads to random results for each iteration
+    balanced = True  # Enforcing equality of classes
+    split_ratio = 0.8  # Sets training-sample proportion
+    verbose = False
+
     # Standard parameters specific to OML system
     theta_enc = 1
-    encoding='amplitude' 
-    detectors=(33,66)
-    loss_kind='mse'
-    learning_rate=1.3
-    batch_size=1
-    init="haar"
-    max_epochs=1
-    patience=1
-    min_delta=1e-3
-    eta_bs=1.0
-    alpha_fiber=0.0
-    
+    encoding = 'amplitude'
+    detectors = (33, 66)
+    loss_kind = 'mse'
+    learning_rate = 1.3
+    batch_size = 1
+    init = "haar"
+    max_epochs = 1
+    patience = 1
+    min_delta = 1e-3
+    eta_bs = 1.0
+    alpha_fiber = 0.0
+
     # Linear regression
-    #print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
-    linear_regression_sweep(values, number, theta_enc, 
-                                seed, balanced, split_ratio)
-    
-    
-    
-<<<<<<< HEAD
+    # print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+    # linear_regression_sweep(values, number, theta_enc,
+    #                         seed, balanced, split_ratio)
+
     # Training with standard_parameters
-    standard_training(m, theta_enc, norm_energy, encoding, 
-            detectors, loss_kind, learning_rate, batch_size,
-            init, max_epochs, patience, min_delta, 
-            seed, eta_bs, alpha_fiber)
-=======
-#%%%
-fig, _ = plot_training(trainers, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
-#%%% Sweep over batch sizes
-
-#Standard variables
-init="haar"
-detector_positions = (33, 66)
-
-#Sweep Array:
-sweep=np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])                        
-sweep_label="batch_size"                  
-
-#Perform training
-trainers = []
-for s in sweep:
-    cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-            detectors=detector_positions, loss_kind='mse', learning_rate=0.1, batch_size=s,
-                      init=init, max_epochs=35, patience=2, min_delta=1e-4,     #patience=2 und min_delta=1e-4 hat sich für mich jetzt gut ergeben, vielleicht sogar nur 1e-3
-                      param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-    E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                      theta_enc=1, normalize_energy=True,
-                                      seed=1550, balanced=True, verbose=True)
-    t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-    t.fit(E_tr, y_tr)
-    t.test_acc = t.evaluate(E_te, y_te)[1]  
-    t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
-    trainers.append(t)
-
-#Plot trainingresults
-fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
-
-for s, t in zip(sweep, trainers):
-    print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
-          f"loss={t.history['loss'][-1]:.5f}  "
-          f"train acc={t.history['acc'][-1]:.4f}  "
-          f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
-
-#%%%
-plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
-
-#%%% Sweep over learning rate
-
-#Standard variables
-init="haar"
-m = 10
-detector_positions = (33, 66)
-
-#Sweep Array:
-sweep = [0.01, 0.03, 0.1, 0.3, 1.0, 5.0,10.0,50.0]                
-sweep_label="learning_rate"                  
-
-#Perform training
-trainers = []
-for s in sweep:
-    cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-            detectors=detector_positions, loss_kind='mse', learning_rate=s, batch_size=64,
-                      init=init, max_epochs=35, patience=5, min_delta=1e-4,     #patience=2 und min_delta=1e-4 hat sich für mich jetzt gut ergeben, vielleicht sogar nur 1e-3
-                      param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-    E_tr, y_tr, E_te, y_te = get_data(values, number=2000, m_side=m,
-                                      theta_enc=1, normalize_energy=True,
-                                      seed=1550, balanced=True, verbose=True)
-    t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-    t.fit(E_tr, y_tr)
-    t.test_acc = t.evaluate(E_te, y_te)[1]  
-    t.save(f"results/{sweep_label}/{s:.3f}.json", test_acc=t.test_acc)
-    trainers.append(t)
-
-#Plot trainingresults
-fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
-
-for s, t in zip(sweep, trainers):
-    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d} "
-          f"loss={t.history['loss'][-1]:.5f}  "
-          f"train acc={t.history['acc'][-1]:.4f}  "
-          f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
-
-#%%All data
-trainers = []
-for s in sweep:
-    t = Trainer.load(os.path.join(os.getcwd(),f"results/{sweep_label}/{s:.3f}.json"))
-    test_loss, test_acc = t.evaluate(E_test, Y_test)
-    trainers.append(t)
-
-for s, t in zip(sweep, trainers):
-    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d} "
-          f"loss={t.history['loss'][-1]:.5f}  "
-          f"train acc={t.history['acc'][-1]:.4f}  "
-          f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
+    # standard_training(values, number, m, theta_enc, norm_energy,
+    #                   seed, balanced, split_ratio, encoding,
+    #                   detectors, loss_kind, learning_rate, batch_size,
+    #                   init, max_epochs, patience, min_delta,
+    #                   eta_bs, alpha_fiber, verbose)
 
 
-
-#%%%
-fig.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
-
-
-#%%% Fixed ratio of batch_size and learning_rate
-learning_rate_fixed = batch_sizes*0.1
-batch_sizes = [16]
-
-
-trainers_fixed = []
-for size, rate in zip(batch_sizes, learning_rate_fixed):
-    cfg = TrainConfig(m_side=m, theta_enc=1, normalize_energy=True, encoding='amplitude', 
-            detectors=detector_positions, loss_kind='mse', learning_rate=rate, batch_size=size,
-                      init="random", max_epochs=35, patience=2, min_delta=1e-4, 
-                      param_init_seed=1550, eta_bs=1.0, alpha_fiber=0.0)
-    E_tr, y_tr, E_te, y_te = get_data(values, number=200, m_side=m,
-                                      theta_enc=1, normalize_energy=True,
-                                      seed=1550, balanced=True, verbose=True)
-    t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-    t.fit(E_tr, y_tr)
-    t.test_acc_fixed = t.evaluate(E_te, y_te)[1]      
-    trainers_fixed.append(t)
-
-#%%%
-fig, _ = plot_training(trainers_fixed, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-# #%% To be deleted when cleaned up
-# ### PREPARE TRAINING DATA
-
-# values = np.array([1,7]) #figures you want from the mnist dataset
-# mode = "Training" #Selects if you want the test-set ("Testing") or the training-set ("Training")
-# number = 1000 #Sets number of samples you want to get in total
-# m_side = 10 #side length (pixel) of mnist image after downsampling
-# theta_enc = 1 #mysterious hyper parameter for amplitude scaling
-# norm_energy = True #Bool for if energy of encoded image should be normalized or not
-# seed = None #Random seed to control random choice of number -pictures out of the available ones, 
-#             #seed = None leads to random results for each iteration
-
-# E_X, Y = get_data(values, mode, number, m_side, theta_enc, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
-#                                                                   #Y are the referring labels
-
-# N=100 #number of channels (number of pixels in mnist image)
-# prop_mesh = MZIMesh(N, plan_rectangular(N, N)) #creating mesh object
-# thetas, phis = prop_mesh.init_random() #initializing random weights
-
-# layers = prop_mesh.layer_matrices_separate(thetas, phis)   #build transfer matrices (layers) from parameters
-
-# ### PREPARE TESTING DATA
-
-# values = np.array([1,7]) #figures you want from the mnist dataset
-# mode = "Testing" #Selects if you want the test-set ("Testing") or the training-set ("Training")
-# number_t = 1000 #Sets number of samples you want to get in total
-# m_side = 10 #side length (pixel) of mnist image after downsampling
-# theta_enc = 1 #mysterious hyper parameter for amplitude scaling
-# norm_energy = True #Bool for if energy of encoded image should be normalized or not
-# seed = None #Random seed to control random choice of number -pictures out of the available ones, 
-#             #seed = None leads to random results for each iteration
-# E_X_test, Y_test = get_data(values, mode, number_t, m_side, theta_enc, norm_energy, seed) #E_X are the flattened arrays of the encoded mnist images (complex valued), 
-
-
-
-# # TRAINING (with testing)
-# learning_rate = 1e-2
-
-# for j in range(number):
->>>>>>> 57e0ab40b5a36abf20096c9a9b6ddd53e19a9c5d
+    # training_compare_initialization(values, number, m, theta_enc, norm_energy,
+    #                       seed, balanced, split_ratio, encoding,
+    #                       detectors, loss_kind, learning_rate, batch_size,
+    #                       init, max_epochs, patience, min_delta,
+    #                       eta_bs, alpha_fiber, verbose)
     
+    training_sweep_batch_size(values, number, m, theta_enc, norm_energy,
+                          seed, balanced, split_ratio, encoding,
+                          detectors, loss_kind, learning_rate, batch_size,
+                          init, max_epochs, patience, min_delta,
+                          eta_bs, alpha_fiber, verbose)
+    
+    # training_sweep_learning_rate(alues, number, m, theta_enc, norm_energy,
+    #                       seed, balanced, split_ratio, encoding,
+    #                       detectors, loss_kind, learning_rate, batch_size,
+    #                       init, max_epochs, patience, min_delta,
+    #                       eta_bs, alpha_fiber, verbose)
+
 if __name__ == "__main__":
     main()
-
