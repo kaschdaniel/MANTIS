@@ -35,8 +35,7 @@ def load_mnist(values):
 
 def down_sample(image, m_side=10):
     '''
-    Returns down-sampled image by factor "image length/m_side" 
-    on both axis using resize function from skimage
+    Returns down-sampled image using resize function from skimage
 
     Parameters
     ----------
@@ -53,7 +52,6 @@ def down_sample(image, m_side=10):
     '''
     image = np.asarray(image, dtype=float)
     assert image.shape[0] == image.shape[1], "Image not quadratic"
-    factor = int(len(image)/m_side)+1
     out = resize(image, (m_side, m_side), anti_aliasing=True,
                  preserve_range=True)
     assert out.shape == (m_side, m_side) #assert output image is quadratic
