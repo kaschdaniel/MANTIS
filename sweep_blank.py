@@ -21,7 +21,7 @@ for s in sweep:
     t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
     t.fit(E_tr, y_tr)
     t.test_acc = t.evaluate(E_te, y_te)[1]  
-    t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
+    t.save(f"results/{sweep_label}/{s}.json")
     trainers.append(t)
 
 #Plot trainingresults

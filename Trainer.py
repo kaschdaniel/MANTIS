@@ -49,6 +49,12 @@ def _copy(params):
     """Deep copy of a weight list -- step() updates the arrays in place."""
     return [p.copy() for p in params]
 
+def _jsonable(o):
+    """Convert NumPy scalars/arrays that json does not know about."""
+    if isinstance(o, np.integer):  return int(o)
+    if isinstance(o, np.floating): return float(o)
+    if isinstance(o, np.ndarray):  return o.tolist()
+    raise TypeError(f"not JSON serializable: {type(o)}")
 
 class Trainer:
     """Adjoint-based gradient descent on an MZI mesh.
@@ -72,6 +78,7 @@ class Trainer:
         self.history = {"loss": [], "acc": [], "grad_norm": [],
                         "batch_loss": [], "epoch_end_step": []}
         self.train_time = None
+        self.test_acc = None               # set by the caller after evaluate()
 
     def _layers(self):
         """Transfer matrices for the current weights. Rebuilt after every
@@ -188,6 +195,7 @@ class Trainer:
             "history": {k: [float(x) for x in v]
                         for k, v in self.history.items()},
             "train_time": float(self.train_time),
+            "test_acc": self.test_acc,
             "extra": extra
         }
         path = pathlib.Path(path)
@@ -195,13 +203,6 @@ class Trainer:
         with open(path, "w") as f:
             json.dump(state, f, indent=2, default=_jsonable)
         return path
-
-    def _jsonable(o):
-        """Convert NumPy scalars/arrays that json does not know about."""
-        if isinstance(o, np.integer):  return int(o)
-        if isinstance(o, np.floating): return float(o)
-        if isinstance(o, np.ndarray):  return o.tolist()
-        raise TypeError(f"not JSON serializable: {type(o)}")
 
     @classmethod
     def load(cls, path):
@@ -229,5 +230,7 @@ class Trainer:
         obj.history = {k: [float(x) for x in v]
                        for k, v in state["history"].items()}
         obj.train_time = state["train_time"]
+        # test_acc: top level for new files, inside extra for old ones
         obj.extra = state.get("extra", {})
+        obj.test_acc = state.get("test_acc", obj.extra.get("test_acc"))
         return obj

@@ -214,10 +214,11 @@ plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='ti
 
 #Standard variables
 init="haar"
+m = 10
 detector_positions = (33, 66)
 
 #Sweep Array:
-sweep = [0.01, 0.03, 0.1, 0.3, 1.0]                        
+sweep = [0.01, 0.03, 0.1, 0.3, 1.0, 5.0,10.0,50.0]                
 sweep_label="learning_rate"                  
 
 #Perform training
@@ -240,13 +241,28 @@ for s in sweep:
 fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
 
 for s, t in zip(sweep, trainers):
-    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d}"
+    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d} "
           f"loss={t.history['loss'][-1]:.5f}  "
           f"train acc={t.history['acc'][-1]:.4f}  "
           f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
+#%%All data
+trainers = []
+for s in sweep:
+    t = Trainer.load(os.path.join(os.getcwd(),f"results/{sweep_label}/{s:.3f}.json"))
+    test_loss, test_acc = t.evaluate(E_test, Y_test)
+    trainers.append(t)
+
+for s, t in zip(sweep, trainers):
+    print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d} "
+          f"loss={t.history['loss'][-1]:.5f}  "
+          f"train acc={t.history['acc'][-1]:.4f}  "
+          f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
+
+
+
 #%%%
-plt.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
+fig.savefig(f"results/{sweep_label}/plot_training.png", dpi=600, bbox_inches='tight')
 
 
 #%%% Fixed ratio of batch_size and learning_rate
