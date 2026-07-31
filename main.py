@@ -12,35 +12,30 @@ import matplotlib.pyplot as plt
 from keras.datasets import mnist
 
 
+def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
+    return linear_regression(E_train, Y_train, E_test, Y_test)[2]
 
-def linear_regression(X_train, y_train, X_test, y_test):
-    '''
-    Linear regression, calculation of confusion matrix and accuracy
-    '''
-    # Change y labels from 1 and 7 to 0 and 1
-    y_train_norm = (y_train == 7).astype(int)
-    y_test_norm = (y_test == 7).astype(int)
 
-    # MODEL TRAINING
-    F = np.vstack([np.ones(len(X_train.T)), X_train]).T
-    # Calculate Moore-Penrose pseudoinverse
-    theta = np.linalg.pinv(F) @ y_train_norm
+def main(): 
+    # Load and encode data (identical for all tests)
+    values = np.array([1,7])#figures you want from the mnist dataset
+    number = 2000            #Sets number of samples you want to get in total
+    m_side = 10             #side length (pixel) of mnist image after downsampling
+    theta_enc = 1           #mysterious hyper parameter for amplitude scaling
+    norm_energy = True      #Bool for if energy of encoded image should be normalized or not
+    seed = 1550             #Random seed to control random choice of number -pictures out of the available ones, 
+                            #seed = None leads to random results for each iteration
+    balanced = True         #Enforcing equality of classes
+    split_ratio = 0.8       #Sets training-sample proportion
 
-    # MODEL TESTING
-    y_pred = theta[0] + np.sum(theta[1:] * X_test.T, axis = 1)
-    y_pred_label = (y_pred >= 0.5).astype(int)#(np.float64)
+    E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                            theta_enc, norm_energy, seed, balanced, split_ratio)   
     
     
-    y_pred_label[y_pred_label == 1] = 7
-    y_pred_label[y_pred_label == 0] = 1
-
-    conf_matrix = confusion_matrix(y_test, y_pred_label)
-
-    accuracy = (conf_matrix[0,0]+ conf_matrix[1,1])/np.sum(conf_matrix)
-
-    return theta, y_pred, accuracy
-
-
+    # Linear regression
+    print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+    
+    
 
 #%% Begin of relevant code
 
@@ -60,17 +55,19 @@ E_train, Y_train, E_test, Y_test = get_data(values, number, m_side,
 #E_* are the flattened arrays of the encoded mnist images (complex valued), 
 #Y_* are the referring labels
 
+norm_energy = False 
+E_train, Y_train, E_test, Y_test = get_data(values, number, m_side, 
+                    theta_enc, norm_energy, seed, balanced, split_ratio) 
+
 
 #%%% Linear regression
-def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
-    return linear_regression(E_train, Y_train, E_test, Y_test)[2]
 
-
-#With normalized Energy
-norm_energy=True
 print(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+acc_not_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test))
+
 #_, _, acc = linear_regression(E_train, Y_train, E_test, Y_test)
 #print(acc)
+
 
 #Sweep over ms
 ms = [1,2,4,6,8,10,16,20,28]
@@ -155,7 +152,6 @@ for i in initial:
     t.save(f"results/initialization/{i}.json", test_acc=t.test_acc)
     trainers.append(t)
 
-#%%%
 fig, _ = plot_training(trainers, initial, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label="Init.")
 
 
@@ -191,8 +187,8 @@ m = 10
 detector_positions = (33, 66)
 
 #Sweep Array:
-sweep=np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])                        #<----------------------------------------
-sweep_label="batch_size"                  #<----------------------------------------
+sweep=np.array([1, 2, 4, 8, 16, 32, 64, 128, 256])                        
+sweep_label="batch_size"                  
 
 #Perform training
 trainers = []
@@ -230,8 +226,8 @@ m = 10
 detector_positions = (33, 66)
 
 #Sweep Array:
-sweep = [0.01, 0.03, 0.1, 0.3, 1.0]                        #<----------------------------------------
-sweep_label="learning_rate"                  #<----------------------------------------
+sweep = [0.01, 0.03, 0.1, 0.3, 1.0]                        
+sweep_label="learning_rate"                  
 
 #Perform training
 trainers = []
@@ -285,29 +281,6 @@ for size, rate in zip(batch_sizes, learning_rate_fixed):
 fig, _ = plot_training(trainers_fixed, batch_sizes, keys=("batch_loss", "loss", "acc", "grad_norm"))
 
 
-
-# runs = {"history": history, "test_acc": test_acc,
-#                "train_time": trainer.train_time, "cfg": cfg} #for loop over multiple 
-# runss={}
-# runss[0]=runs
-# plot_runs(runss, keys=("loss", "acc", "grad_norm"), label="m")
-
-# ms = [4, 6, 8, 10, 14,20,26]
-# trainers = []
-# for m in ms:
-#     cfg = TrainConfig(m_side=m, learning_rate=0.3, batch_size=64, param_init_seed=0, max_epochs=3)
-#     E_tr, y_tr, E_te, y_te = get_data(values, number=200, m_side=m,
-#                                       theta_enc=1, normalize_energy=True,
-#                                       seed=1550, balanced=True, verbose=True)
-#     t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
-#     t.fit(E_tr, y_tr)
-#     t.test_acc = t.evaluate(E_te, y_te)[1]      
-#     trainers.append(t)
-
-# fig, _ = plot_training(trainers, ms, "m")
-
-# # Einzelner Lauf
-# fig, _ = plot_training(trainers[0])
 
 
 
@@ -416,50 +389,3 @@ fig, _ = plot_training(trainers_fixed, batch_sizes, keys=("batch_loss", "loss", 
 # # if __name__ == "__main__":
 # #     main()
 
-# # #%%%
-# # # ----------------------------------------------------------------------
-# # # 1. Daten vorbereiten: Train / Val / Test getrennt
-# # # ----------------------------------------------------------------------
-# # # get_data liefert (N, k) und Labels. Encoding-Parameter wie gehabt.
-# # E_train, y_train = get_data(values, "Training", number=1400, m_side=10,
-# #                             theta=1, normalize_energy=True, seed=0)
-# # E_pool,  y_pool  = get_data(values, "Testing",  number=None,  m_side=10,
-# #                             theta=1, normalize_energy=True, seed=0)
-
-# # # Testpool in Validierung und Test aufteilen (einmalig, fester Seed)
-# # rng = np.random.default_rng(0)
-# # perm = rng.permutation(E_pool.shape[1])
-# # half = len(perm) // 2
-# # val_idx, test_idx = perm[:half], perm[half:]
-# # E_val,  y_val  = E_pool[:, val_idx],  y_pool[val_idx]
-# # E_test, y_test = E_pool[:, test_idx], y_pool[test_idx]
-
-# # # ----------------------------------------------------------------------
-# # # 2. Ein einzelner Trainingslauf
-# # # ----------------------------------------------------------------------
-# # N = 100
-# # mesh = MZIMesh(N, plan_rectangular(N, N))
-
-# # cfg = TrainConfig(
-# #     loss_kind="mse_norm",
-# #     learning_rate=1e-2,
-# #     detectors=(33, 66),
-# #     init="haar",
-# #     seed=0,
-# # )
-
-# # trainer = Trainer(mesh, cfg)
-# # history = trainer.fit(E_train, y_train, E_val, y_val)
-
-# # # Test genau EINMAL, mit den besten (nicht den letzten) Parametern
-# # test_loss, test_acc = trainer.evaluate(E_test, y_test)
-# # print(f"Val acc {trainer.best['val_acc']:.3f} | "
-# #       f"Test acc {test_acc:.3f} | "
-# #       f"stopped at epoch {trainer.best['epoch']} | "
-# #       f"{trainer.train_time:.1f}s")
-
-# # # Lernkurve fürs Protokoll
-# # fig, _ = plot_learning_curves(history)   # train_loss, val_loss, val_acc
-# # # %%
-
-# %%
