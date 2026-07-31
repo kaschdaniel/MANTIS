@@ -135,7 +135,7 @@ def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normali
     trainers = []
     for s in sweep:
         cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
-                          detectors, loss_kind, learning_rate, s,
+                          detectors, loss_kind, learning_rate, s, #s for batch_size
                           init, max_epochs, patience, min_delta,
                           param_init_seed, eta_bs, alpha_fiber)
         E_tr, y_tr, E_te, y_te = get_data(values, number, m,
@@ -148,16 +148,21 @@ def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normali
         trainers.append(t)
 
     # Plot trainingresults
-    fig, _ = plot_training(trainers, sweep, keys=(
-        "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
-
     for s, t in zip(sweep, trainers):
         print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
               f"loss={t.history['loss'][-1]:.5f}  "
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
-    fig.savefig(f"results/{sweep_label}/plot_training.png",
+    fig, _ = plot_training(trainers, sweep, keys=(
+    "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label, x_axis="epoch")
+
+    fig.savefig(f"results/{sweep_label}/plot_training_epoch.png",
+                dpi=600, bbox_inches='tight')
+
+    fig, _ = plot_training(trainers, sweep, keys=(
+    "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label, x_axis="time")
+    fig.savefig(f"results/{sweep_label}/plot_training_time.png",
                 dpi=600, bbox_inches='tight')
 
 
@@ -191,6 +196,44 @@ def training_sweep_learning_rate(sweep_param, values, number, m, theta_enc, norm
 
     for s, t in zip(sweep, trainers):
         print(f"{sweep_label}={s}  epochs={len(t.history['loss']):3d}"
+              f"loss={t.history['loss'][-1]:.5f}  "
+              f"train acc={t.history['acc'][-1]:.4f}  "
+              f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
+
+    fig.savefig(f"results/{sweep_label}/plot_training.png",
+                dpi=600, bbox_inches='tight')
+
+def training_sweep_loss_funct(sweep_param, values, number, m, theta_enc, normalize_energy,
+                      param_init_seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, verbose):
+    
+    sweep = sweep_param[0]
+    sweep_label = sweep_param[1]
+
+    # Perform training
+    trainers = []
+    for s in sweep:
+        cfg = TrainConfig(m, theta_enc, normalize_energy, encoding,
+                          detectors, s, learning_rate, batch_size, #s for loss_kind
+                          init, max_epochs, patience, min_delta,
+                          param_init_seed, eta_bs, alpha_fiber)
+        E_tr, y_tr, E_te, y_te = get_data(values, number, m,
+                                          theta_enc, normalize_energy,
+                                          param_init_seed, verbose)
+        t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
+        t.fit(E_tr, y_tr)
+        t.test_acc = t.evaluate(E_te, y_te)[1]
+        t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
+        trainers.append(t)
+
+    # Plot trainingresults
+    fig, _ = plot_training(trainers, sweep, keys=(
+        "batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
+
+    for s, t in zip(sweep, trainers):
+        print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
               f"loss={t.history['loss'][-1]:.5f}  "
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
