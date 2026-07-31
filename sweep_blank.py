@@ -5,7 +5,7 @@ detector_positions = (33, 66)
 
 #Sweep Array:
 sweep=[]                        #<----------------------------------------
-swep_label=""                  #<----------------------------------------
+sweep_label=""                  #<----------------------------------------
 
 #Perform training
 trainers = []
@@ -20,11 +20,11 @@ for s in sweep:
     t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, cfg.N)), cfg)
     t.fit(E_tr, y_tr)
     t.test_acc = t.evaluate(E_te, y_te)[1]  
-    t.save(f"results/{swep_label}/{s}.json", test_acc=t.test_acc)
+    t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
     trainers.append(t)
 
 #Plot trainingresults
-fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=swep_label)
+fig, _ = plot_training(trainers, sweep, keys=("batch_loss", "loss", "acc", "grad_norm"), sweep_label=sweep_label)
 
 for s, t in zip(sweep, trainers):
     print(f"m={m:3d}  N={m*m:4d}  epochs={len(t.history['loss']):3d}  "
