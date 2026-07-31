@@ -294,8 +294,8 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
         labels = [f"{sweep_label} = {v}" for v in sweep_values]
 
     log_scale = {"loss", "grad_norm", "batch_loss"}
-    axis_label = {"loss": "Training loss", "acc": "Accuracy",
-                  "grad_norm": r"$\|\nabla\|_2$", "batch_loss": "Batch loss"}
+    axis_label = {"loss": "Training loss per epoch", "acc": "Accuracy",
+                  "grad_norm": r"$\|\nabla\|_2$", "batch_loss": "Training loss per batch"}#Also declaring batch_loss as training loss
     x_label = {"batch_loss": "gradient step"}
 
     fig, axes = plt.subplots(1, len(keys), figsize=(4.3*len(keys), 3.5),
@@ -311,7 +311,8 @@ def plot_training(trainers, sweep_values=None, sweep_label="m",
                 x = (np.arange(len(h[key])) + 1) / spe
                 ax.plot(x, h[key], color=col, lw=0.9, marker="o", markersize=3, label=lab)
             else:
-                ax.plot(h[key], color=col, lw=1.5, marker="o", markersize=3, label=lab)
+                x_epochs = np.arange(1, len(h[key]) + 1)
+                ax.plot(x_epochs,h[key], color=col, lw=1.5, marker="o", markersize=3, label=lab)
 
     for ax, key in zip(axes, keys):
         ax.set_xlabel("Epoch")

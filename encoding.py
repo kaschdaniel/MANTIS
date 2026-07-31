@@ -35,18 +35,19 @@ def load_mnist(values):
 
 def down_sample(image, m_side=10):
     '''
-    Returns down-sampled image by factor "image length/m_side" on both axis
+    Returns down-sampled image by factor "image length/m_side" 
+    on both axis using resize function from skimage
 
     Parameters
     ----------
-    image : TYPE
-        DESCRIPTION.
-    m : TYPE, optional
-        DESCRIPTION. The default is 10.
+    image : 3D array
+        Training images of MNIST digits
+    m_side : int
+        Sidelength to sample image to, default is 10.
 
     Returns
     -------
-    image_downsampled : TYPE
+    image_downsampled : 3D Array
         DESCRIPTION.
 
     '''
