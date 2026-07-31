@@ -157,7 +157,7 @@ def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normali
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
-    plt.savefig(f"results/{sweep_label}/plot_training.png",
+    fig.savefig(f"results/{sweep_label}/plot_training.png",
                 dpi=600, bbox_inches='tight')
 
 
@@ -195,7 +195,7 @@ def training_sweep_learning_rate(sweep_param, values, number, m, theta_enc, norm
               f"train acc={t.history['acc'][-1]:.4f}  "
               f"test acc={t.test_acc:.4f}  {t.train_time:.0f}s")
 
-    plt.savefig(f"results/{sweep_label}/plot_training.png",
+    fig.savefig(f"results/{sweep_label}/plot_training.png",
                 dpi=600, bbox_inches='tight')
 
 
