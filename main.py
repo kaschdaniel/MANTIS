@@ -60,7 +60,7 @@ def standard_training(values, number, m, theta_enc, normalize_energy,
                       param_init_seed, balanced, split_ratio, encoding,
                       detectors, loss_kind, learning_rate, batch_size,
                       init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                      eta_bs, alpha_fiber, verbose, save_path=None):
 
     N = m**2
 
@@ -82,12 +82,19 @@ def standard_training(values, number, m, theta_enc, normalize_energy,
     history = trainer.fit(E_train, Y_train)
 
     test_loss, test_acc = trainer.evaluate(E_test, Y_test)
+    trainer.test_acc = test_acc
     print(f"validation acc {history['acc'][-1]:.4f} | test acc {test_acc:.4f} | "
           f"{len(history['loss'])} epochs, {trainer.train_time:.1f}s")
     print(f"inference: {trainer.inference_time(E_test)*1e3:.2f} ms/sample")
 
+    # Save the run as a reloadable file, like the sweeps do (skipped if
+    # save_path is None). Trainer.load(save_path) restores it later.
+    if save_path is not None:
+        trainer.save(save_path, test_acc=test_acc)
+
     fig, _ = plot_training(trainer)
-    fig.show()
+    plt.show()
+    return trainer
 
 
 def training_compare_initialization(values, number, m, theta_enc, normalize_energy,
@@ -553,12 +560,12 @@ def main():
     encoding = 'amplitude'
     detectors = (33, 66)
     loss_kind = 'mse'
-    learning_rate = 1.0
+    learning_rate = 1.3
     batch_size = 64
     init = "haar"
-    max_epochs = 30
-    patience = 2
-    min_delta = 1e-4
+    max_epochs = 5
+    patience = 1
+    min_delta = 1e-3
     eta_bs = 1.0
     alpha_fiber = 0.0
 
@@ -572,6 +579,18 @@ def main():
     #                   detectors, loss_kind, learning_rate, batch_size,
     #                   init, max_epochs, patience, min_delta,
     #                   eta_bs, alpha_fiber, verbose)
+
+
+    #can also save single runs
+    # trainer = standard_training(values, number, m, theta_enc, norm_energy,
+    #                             seed, balanced, split_ratio, encoding,
+    #                             detectors, loss_kind, learning_rate, batch_size,
+    #                             init, max_epochs, patience, min_delta,
+    #                             eta_bs, alpha_fiber, verbose,
+    #                             save_path="results/final/best_model.json")
+
+    # trainer = Trainer.load("results/final/best_model.json")
+    # print(trainer.extra["test_acc"])
 
     # training_compare_initialization(values, number, m, theta_enc, norm_energy,
     #                       seed, balanced, split_ratio, encoding,
