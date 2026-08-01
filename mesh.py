@@ -164,9 +164,8 @@ class MZIMesh:
 
     # -------------------------------------------------- Initialisierung
     def init_random(self, rng=None):
-        """Uniforme Initialisierung: theta in [0, pi], phi in [0, 2pi).
-        Achtung: das ist genau die Initialisierung, die Pai et al. als
-        problematisch beschreiben (banded unitary / random walk)."""
+        """Uniform initialization: theta in [0, pi], phi in [0, 2pi).
+        """
         if rng is None:
             rng = np.random.default_rng()
         thetas = [rng.uniform(0, np.pi, n) for n in self.slot_counts] #creates as many random values for theta as there are needed in each layer
@@ -175,36 +174,40 @@ class MZIMesh:
         return thetas, phis #Returns python lists containing numpy arrays
 
     def init_haar(self, rng=None):
-        """Haar-Initialisierung (Pai Gl. 9):
-            t = xi^(1/alpha),  theta = 2*arccos(sqrt(t)),  xi ~ U(0,1)
-        alpha ist der Sensitivitaetsindex des jeweiligen MZI. Sorgt dafuer,
-        dass Licht von jedem Eingang gleichmaessig auf alle Ausgaenge
-        verteilt wird statt sich um die Diagonale zu draengen."""
+        """Haar initialization for uniformly random global transfer matrices.
+
+        Sets the phase shifts using the sensitivity index alpha: 
+        t = xi^(1/alpha), where xi ~ U(0,1). This ensures that input light 
+        spreads evenly across all spatial modes instead of localizing along 
+        the diagonal.
+        """
         if rng is None:
             rng = np.random.default_rng()
+        
         alphas = self.sensitivity_index()
         thetas, phis = [], []
+        
         for a in alphas:
             xi = rng.uniform(0, 1, len(a))
             t = xi ** (1.0 / np.maximum(a, 1))
             thetas.append(2 * np.arccos(np.sqrt(t)))
             phis.append(rng.uniform(0, 2*np.pi, len(a)))
+            
         return thetas, phis
 
     def sensitivity_index(self):
-        """alpha = |I| + |O| - N - 1 fuer jedes MZI (Pai Sec. III A).
-
-        |I| = wieviele Eingaenge dieses MZI erreichen koennen,
-        |O| = wieviele Ausgaenge es beeinflussen kann.
-
-        Statt Formeln pro Architektur zu suchen, wird die Erreichbarkeit
-        einfach einmal vorwaerts und einmal rueckwaerts durchpropagiert.
-        reach[i] ist eine Bool-Zeile: welche Eingaenge erreichen Wellenleiter i.
-        Das funktioniert damit fuer JEDEN Bauplan, auch mit Permutationen.
+        """Calculates the structural sensitivity index for each MZI.
+        
+        The index indicates how much global influence a component has on the 
+        optical network: |I| + |O| - N - 1. |I| and |O| are the number of 
+        physical inputs and outputs connected to the MZI.
+        
+        Determine connectivity topologically by propagating boolean reachability forward 
+        and backward. This works universally for any mesh design.
         """
         N = self.N
 
-        # vorwaerts: |I| an jedem Knoten einsammeln
+        # forward pass: trace reachable inputs per MZI
         reach = np.eye(N, dtype=bool)
         I_counts = []
         for kind, data in self.plan:
@@ -216,13 +219,13 @@ class MZIMesh:
             for k in data:
                 both = reach[k] | reach[k+1]
                 counts.append(int(both.sum()))
-            for i, k in enumerate(data):          # erst zaehlen, dann mischen
+            for i, k in enumerate(data):          # count before mixing the paths
                 both = reach[k] | reach[k+1]
                 reach[k] = both
                 reach[k+1] = both
             I_counts.append(np.array(counts))
 
-        # rueckwaerts: |O| an jedem Knoten einsammeln
+        # backward pass: trace reachable outputs per MZI
         reach = np.eye(N, dtype=bool)
         O_counts = []
         for kind, data in reversed(self.plan):
@@ -275,23 +278,18 @@ class MZIMesh:
     
     # -------------------------------------------------- Matrizen
     def layer_matrices_separate(self, thetas, phis, eta_bs=1.0, alpha_fiber=0.0):
-        """Liste der N x N Matrizen, eine pro Layer.
+        """Generates the N x N optical transfer matrices for each phase shifter layer separately.
 
-        eta_bs      : Leistungstransmission je Strahlteiler (BS-Verlust).
-                      1.0 -> verlustfrei.
-        alpha_fiber : Wellenleiterverlust in dB pro Layer-Abschnitt.
-                      0.0 -> verlustfrei. Wird als diagonaler Faktor an
-                      JEDES Layer multipliziert (betrifft auch Kanaele
-                      ohne MZI), getrennt vom BS-Verlust.
-
-        Bewusst NICHT nur das Produkt: die adjungierte Backpropagation
-        braucht die Felder an jedem einzelnen Layer, und die Feld-
-        visualisierung fuer den Bericht ebenfalls.
+        eta_bs      : Power transmission coefficient per beamsplitter (1.0 = lossless).
+        alpha_fiber : Waveguide propagation loss in dB per layer section. Applied
+                    uniformly as an amplitude reduction factor across all channels.
         """
         N = self.N
-        # dB (Leistung) -> Amplitudenfaktor: 10^(-alpha/20)
+        
+        # Convert power loss in dB to field amplitude factor
         fiber_amp = 10.0 ** (-alpha_fiber / 20.0)
         mats = []
+        
         for (kind, data), th, ph in zip(self.plan, thetas, phis):
             if kind == "perm":
                 M_theta = np.eye(N, dtype=np.complex128)[data]
@@ -300,9 +298,11 @@ class MZIMesh:
                 M_theta = np.eye(N, dtype=np.complex128)
                 M_phi = M_theta.copy()
                 for i, k in enumerate(data):
-                    #M[k:k+2, k:k+2] = U(th[i], ph[i], eta_bs)
                     M_theta[k:k+2, k:k+2] = U_theta(th[i], eta_bs)
                     M_phi[k:k+2, k:k+2] = U_phi(ph[i], eta_bs)
-            mats.append(fiber_amp * M_theta)   # Fiber-Verlust: getrennter Diagonalfaktor
+            
+            # Apply uniform waveguide propagation loss to each sub-layer
+            mats.append(fiber_amp * M_theta)
             mats.append(fiber_amp * M_phi)
+            
         return mats

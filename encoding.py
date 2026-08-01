@@ -213,7 +213,7 @@ def split(X, y, values, split_ratio=0.8, rng=None):
 
 def get_data(values, number=None, m_side=10, theta_enc=1,
              normalize_energy=False, seed=None, balanced=True,
-             split_ratio=0.8, verbose=True):
+             split_ratio=0.8, verbose=True, encoding="amplitude"):
     """Load, sample, split and encode MNIST data.
 
     Only MNIST's own training split is used as the pool; its test split is
@@ -253,22 +253,24 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     X_all, y_all, _, _ = load_mnist(values)     # discard MNIST's own test split
     rng = np.random.default_rng(seed)
 
-    # 1) shuffle the whole pool once
+    # shuffle the whole pool once
     perm = rng.permutation(len(y_all))
     X_all, y_all = X_all[perm], y_all[perm]
 
-    # 2) keep `number` samples, balanced if requested
+    # keep `number` samples, balanced if requested
     keep = _balanced_indices(y_all, values, number) if balanced \
         else np.arange(len(y_all))[:number]
     X_all, y_all = X_all[keep], y_all[keep]
 
-    # 3) split into training and testing, both balanced per class
+    # split into training and testing, both balanced per class
     X_train, y_train, X_test, y_test = split(X_all, y_all, values,
                                              split_ratio, rng)
 
-    # 4) encode ONLY the selected images -- down_sample is the expensive part
-    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy).T
-    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy).T
+    # encode ONLY the selected images -- down_sample is the expensive part
+    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy,
+                           encoding_type=encoding).T
+    E_test  = encode_batch(X_test,  m_side, theta_enc, normalize_energy,
+                           encoding_type=encoding).T
 
     if verbose:
         for name, y in (("Train", y_train), ("Test ", y_test)):
