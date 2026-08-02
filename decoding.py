@@ -18,6 +18,7 @@ def detection(E):
     '''
     return np.abs(E)**2
 
+
 def predict(E, det1=0, det7=-1):
     '''
     Returns winner following >>winner takes it all<< comparing detectors of index det1 and det7
@@ -41,6 +42,7 @@ def predict(E, det1=0, det7=-1):
     I = detection(Efield)
     return np.where(I[det1] >= I[det7], 1, 7)
 
+
 def _detector_scores(E, y, det1, det7):
     """Extract detector intensities and one-hot targets.
 
@@ -50,23 +52,23 @@ def _detector_scores(E, y, det1, det7):
     s1, s7 : (batch,) real, detected intensity |E|^2 at each detector
     t1, t7 : (batch,) float, one-hot targets for class 1 and class 7
     """
-    #Handling E either in form (Layer, Channel, Batch) or (Channel, Batch)
+    # Handling E either in form (Layer, Channel, Batch) or (Channel, Batch)
     if E.ndim == 3:
-        Efield=E[-1]
+        Efield = E[-1]
     elif E.ndim == 2:
-        Efield=E
+        Efield = E
     elif E.ndim == 1:
         Efield = E[:, None]            # (N,) -> (N, 1)
     else:
         raise ValueError("E must have ndim 1, 2 or 3!")
 
     I = detection(Efield)
-    s1, s7 = I[det1], I[det7]          # jetzt immer (batch,)
+    s1, s7 = I[det1], I[det7]
     y = np.atleast_1d(y)
     t1 = (y == 1).astype(float)
     t7 = (y == 7).astype(float)
     if len(t1) != Efield.shape[1]:
-        raise ValueError(f"{len(t1)} Labels, aber {Efield.shape[1]} Samples")
+        raise ValueError(f"{len(t1)} Labels, but {Efield.shape[1]} Samples")
     return Efield, s1, s7, t1, t7
 
 
@@ -87,19 +89,14 @@ def loss_function(E, y, det1, det7, kind="mse"):
     """
     if kind not in LOSS_KINDS:
         raise ValueError(f"unknown loss kind: {kind!r}")
-    _, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7) #evaluating intensities at chosen detectors 
+    # evaluating intensities at chosen detectors
+    _, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7)
     per_sample, _, _ = LOSS_KINDS[kind](s1, s7, t1, t7)
-    return per_sample #returns loss per batch using given LOSS kinds. 
-    #Since its regarding given detector positions, it's not in dimension channel x batch but just 1xbatch (one loss value for every batch)
+    return per_sample  # returns loss per batch using given LOSS kinds.
 
 
 def adjoint_source(E, y, det1, det7, kind="mse_norm"):
-    """Gamma_L: Startfeld des Rueckwaertspasses (Hughes-Konvention).
-
-    Nur die beiden Detektorkanaele sind ungleich null.
-    Gamma_L[d_i] = (dL/ds_i) * conj(E_L[d_i])
-    Das conj ist die Hughes-Konvention -- passt zu adjoint_layers mit .T.
-    """
+    """Gamma_L: Initial vector for backward propagation (Hughes convention)."""
     Efield, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7)
     _, dL_ds1, dL_ds7 = LOSS_KINDS[kind](s1, s7, t1, t7)
     B = Efield.shape[1] if Efield.ndim == 2 else 1
@@ -108,53 +105,39 @@ def adjoint_source(E, y, det1, det7, kind="mse_norm"):
     Gam[det7] = dL_ds7 * np.conj(Efield[det7]) / B
     return Gam
 
-# ------------------------------------------------------------ loss kinds
-# Each returns (per_sample, dL_ds1, dL_ds7), all of shape (batch,).
-
 
 def mse(s1, s7, t1, t7):
-    """Squared distance of the raw detector intensities to the targets.
-
-    Simplest choice. Note that it is sensitive to the absolute energy
-    arriving at the detectors, not only to their ratio.
-    """
+    """Squared distance of the detector intensities to the targets."""
     d1, d7 = s1 - t1, s7 - t7
     per_sample = d1**2 + d7**2
     return per_sample, 2.0 * d1, 2.0 * d7
 
 
 def softmax_ce(s1, s7, t1, t7, eps=1e-12):
-    """Cross-entropy over the two detectors, using the intensities as logits.
+    """Cross-entropy over the two detectors, using the intensities as logits."""
 
-    Penalizes only the relative assignment. Because the logits are raw
-    intensities, the effective sharpness depends on the absolute scale of
-    s1, s7 -- worth keeping in mind when tuning theta.
-    """
-    
     # group inputs and targets into arrays instead of stacking
     z = np.array([s1, s7])
     tgt = np.array([t1, t7])
-    
+
     # shift logits by max value for numerical stability before exp
     max_z = np.max(z, axis=0, keepdims=True)
     z = z - max_z
-    
+
     # get softmax probabilities
     ez = np.exp(z)
     ez_sum = np.sum(ez, axis=0, keepdims=True)
     soft = ez / ez_sum
-    
+
     # calculate cross entropy loss
     loss_matrix = tgt * np.log(soft + eps)
     per_sample = -np.sum(loss_matrix, axis=0)
-    
+
     # gradients for ce loss are simply prediction minus target
     grad_s1 = soft[0] - t1
     grad_s7 = soft[1] - t7
-    
+
     return per_sample, grad_s1, grad_s7
 
+
 LOSS_KINDS = {"mse": mse, "softmax": softmax_ce}
-
-
-

@@ -1,5 +1,3 @@
-# METRICS -- evaluation of any classifier, independent of the optical system
-
 import numpy as np
 
 

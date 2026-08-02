@@ -52,8 +52,10 @@ def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
     plt.savefig("results/linear_regression/m_sweep_with_and_without_energy_normalization.png",
                 dpi=600, bbox_inches='tight')
     print("Accuracy results of linear regression")
-    print(f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
-    print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
+    print(
+        f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}")
+    print(
+        f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
 
 
 def standard_training(values, number, m, theta_enc, normalize_energy,
@@ -98,10 +100,10 @@ def standard_training(values, number, m, theta_enc, normalize_energy,
 
 
 def training_compare_initialization(values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                                    param_init_seed, balanced, split_ratio, encoding,
+                                    detectors, loss_kind, learning_rate, batch_size,
+                                    init, max_epochs, patience, min_delta,
+                                    eta_bs, alpha_fiber, verbose):
 
     sweep = ["haar", "random"]
     sweep_label = "initialization"
@@ -146,13 +148,13 @@ def training_compare_initialization(values, number, m, theta_enc, normalize_ener
 
 
 def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                              param_init_seed, balanced, split_ratio, encoding,
+                              detectors, loss_kind, learning_rate, batch_size,
+                              init, max_epochs, patience, min_delta,
+                              eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
-    sweep_label = sweep_param[1]
+    sweep_label = sweep_param[1]+" 2"
 
     # Load and encode data (identical for all runs)
     E_tr, y_tr, E_te, y_te = get_data(
@@ -194,10 +196,10 @@ def training_sweep_batch_size(sweep_param, values, number, m, theta_enc, normali
 
 
 def training_sweep_learning_rate(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                                 param_init_seed, balanced, split_ratio, encoding,
+                                 detectors, loss_kind, learning_rate, batch_size,
+                                 init, max_epochs, patience, min_delta,
+                                 eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -242,10 +244,10 @@ def training_sweep_learning_rate(sweep_param, values, number, m, theta_enc, norm
 
 
 def training_sweep_loss_funct(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                              param_init_seed, balanced, split_ratio, encoding,
+                              detectors, loss_kind, learning_rate, batch_size,
+                              init, max_epochs, patience, min_delta,
+                              eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -288,11 +290,12 @@ def training_sweep_loss_funct(sweep_param, values, number, m, theta_enc, normali
     fig.savefig(f"results/{sweep_label}/plot_training_time.png",
                 dpi=600, bbox_inches='tight')
 
+
 def training_sweep_m_sidelength(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                                param_init_seed, balanced, split_ratio, encoding,
+                                detectors, loss_kind, learning_rate, batch_size,
+                                init, max_epochs, patience, min_delta,
+                                eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -336,11 +339,12 @@ def training_sweep_m_sidelength(sweep_param, values, number, m, theta_enc, norma
     fig.savefig(f"results/{sweep_label}/plot_training_time.png",
                 dpi=600, bbox_inches='tight')
 
+
 def training_sweep_layer_count(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                               param_init_seed, balanced, split_ratio, encoding,
+                               detectors, loss_kind, learning_rate, batch_size,
+                               init, max_epochs, patience, min_delta,
+                               eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -358,7 +362,8 @@ def training_sweep_layer_count(sweep_param, values, number, m, theta_enc, normal
                           detectors, loss_kind, learning_rate, batch_size,
                           init, max_epochs, patience, min_delta,
                           param_init_seed, eta_bs, alpha_fiber)
-        t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, s)), cfg)  # s for layer count
+        t = Trainer(MZIMesh(cfg.N, plan_rectangular(cfg.N, s)),
+                    cfg)  # s for layer count
         t.fit(E_tr, y_tr)
         t.test_acc = t.evaluate(E_te, y_te)[1]
         t.save(f"results/{sweep_label}/{s}.json", test_acc=t.test_acc)
@@ -384,11 +389,12 @@ def training_sweep_layer_count(sweep_param, values, number, m, theta_enc, normal
     fig.savefig(f"results/{sweep_label}/plot_training_time.png",
                 dpi=600, bbox_inches='tight')
 
+
 def training_sweep_theta_enc_phase(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                                   param_init_seed, balanced, split_ratio, encoding,
+                                   detectors, loss_kind, learning_rate, batch_size,
+                                   init, max_epochs, patience, min_delta,
+                                   eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -439,16 +445,18 @@ def _architecture_plan(name, N):
     if name == "triangular":
         return plan_triangular(N)
     if name == "redundant":
-        return plan_redundant(N, N)          # N extra layers on top of the mesh
+        # N extra layers on top of the mesh
+        return plan_redundant(N, N)
     if name == "permuting":
         return plan_permuting(N)
     raise ValueError(f"unknown architecture '{name}'")
 
+
 def training_sweep_architecture(sweep_param, values, number, m, theta_enc, normalize_energy,
-                      param_init_seed, balanced, split_ratio, encoding,
-                      detectors, loss_kind, learning_rate, batch_size,
-                      init, max_epochs, patience, min_delta,
-                      eta_bs, alpha_fiber, verbose):
+                                param_init_seed, balanced, split_ratio, encoding,
+                                detectors, loss_kind, learning_rate, batch_size,
+                                init, max_epochs, patience, min_delta,
+                                eta_bs, alpha_fiber, verbose):
 
     sweep = sweep_param[0]
     sweep_label = sweep_param[1]
@@ -492,6 +500,7 @@ def training_sweep_architecture(sweep_param, values, number, m, theta_enc, norma
         x_axis="time")
     fig.savefig(f"results/{sweep_label}/plot_training_time.png",
                 dpi=600, bbox_inches='tight')
+
 
 def read_sweep(sweep_param):
     """Load a saved sweep and reproduce its printout and plots.
@@ -537,7 +546,6 @@ def read_sweep(sweep_param):
         "loss", "acc", "grad_norm"), sweep_label=sweep_label,
         x_axis="time")
 
-
     return trainers
 
 
@@ -580,14 +588,13 @@ def main():
     #                   init, max_epochs, patience, min_delta,
     #                   eta_bs, alpha_fiber, verbose)
 
-
-    #can also save single runs
-    # trainer = standard_training(values, number, m, theta_enc, norm_energy,
-    #                             seed, balanced, split_ratio, encoding,
-    #                             detectors, loss_kind, learning_rate, batch_size,
-    #                             init, max_epochs, patience, min_delta,
-    #                             eta_bs, alpha_fiber, verbose,
-    #                             save_path="results/final/best_model.json")
+    # can also save single runs
+    trainer = standard_training(values, number, m, theta_enc, norm_energy,
+                                seed, balanced, split_ratio, encoding,
+                                detectors, loss_kind, learning_rate, batch_size,
+                                init, max_epochs, patience, min_delta,
+                                eta_bs, alpha_fiber, verbose,
+                                save_path="results/final/best_model2.json")
 
     # trainer = Trainer.load("results/final/best_model.json")
     # print(trainer.extra["test_acc"])
@@ -598,8 +605,7 @@ def main():
     #                       init, max_epochs, patience, min_delta,
     #                       eta_bs, alpha_fiber, verbose)
 
-    # sweep = [1, 2, 4, 8, 16, 32, 64, 128, 256]
-    # sweep_label = "batch_size"
+    # sweep = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
     # training_sweep_batch_size((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
     #                       seed, balanced, split_ratio, encoding,
     #                       detectors, loss_kind, learning_rate, batch_size,
@@ -638,29 +644,28 @@ def main():
     #                       init, max_epochs, patience, min_delta,
     #                       eta_bs, alpha_fiber, verbose)
 
-    #sweep = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
-    #sweep_label = "theta_enc_phase"
+    # sweep = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
+    # sweep_label = "theta_enc_phase"
     # training_sweep_theta_enc_phase((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
     #                       seed, balanced, split_ratio, encoding,
     #                       detectors, loss_kind, learning_rate, batch_size,
     #                       init, max_epochs, patience, min_delta,
     #                       eta_bs, alpha_fiber, verbose)
 
-    sweep = ["rectangular", "triangular", "redundant", "permuting"]
-    sweep_label = "architecture"
-    training_sweep_architecture((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
-                          seed, balanced, split_ratio, encoding,
-                          detectors, loss_kind, learning_rate, batch_size,
-                          init, max_epochs, patience, min_delta,
-                          eta_bs, alpha_fiber, verbose)
+    # sweep = ["rectangular", "triangular", "redundant", "permuting"]
+    # sweep_label = "architecture"
+    # training_sweep_architecture((sweep, sweep_label), values, number, m, theta_enc, norm_energy,
+    #                       seed, balanced, split_ratio, encoding,
+    #                       detectors, loss_kind, learning_rate, batch_size,
+    #                       init, max_epochs, patience, min_delta,
+    #                       eta_bs, alpha_fiber, verbose)
 
-    #%%
+    # %%
     # Read a saved sweep back without retraining
     # sweep = [6,8,10,14,18,22]
-    #sweep_label = "m_sidelength2"
-    read_sweep((sweep, sweep_label))
+    # sweep_label = "m_sidelength2"
+    # read_sweep((sweep, sweep_label))
 
 
 if __name__ == "__main__":
     main()
-# %%

@@ -1,10 +1,9 @@
-# ENCODING
-
 import numpy as np
 from skimage import data, color
 from skimage.transform import downscale_local_mean
 from skimage.transform import resize
 from keras.datasets import mnist
+
 
 def load_mnist(values):
     '''
@@ -28,14 +27,16 @@ def load_mnist(values):
 
     '''
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train, X_test = X_train[np.isin(y_train, values)], X_test[np.isin(y_test, values)]
-    y_train, y_test = y_train[np.isin(y_train, values)], y_test[np.isin(y_test, values)]
+    X_train, X_test = X_train[np.isin(
+        y_train, values)], X_test[np.isin(y_test, values)]
+    y_train, y_test = y_train[np.isin(
+        y_train, values)], y_test[np.isin(y_test, values)]
     return X_train, y_train, X_test, y_test
 
 
 def down_sample(image, m_side=10):
     '''
-    Returns down-sampled image using resize function from skimage
+    Returns down-sampled image using resize function from skimage.
 
     Parameters
     ----------
@@ -47,14 +48,12 @@ def down_sample(image, m_side=10):
     Returns
     -------
     image_downsampled : 3D Array
-        DESCRIPTION.
-
     '''
     image = np.asarray(image, dtype=float)
     assert image.shape[0] == image.shape[1], "Image not quadratic"
     out = resize(image, (m_side, m_side), anti_aliasing=True,
                  preserve_range=True)
-    assert out.shape == (m_side, m_side) #assert output image is quadratic
+    assert out.shape == (m_side, m_side)  # assert output image is quadratic
     return out
 
 
@@ -65,7 +64,6 @@ def reshape_and_normalize(image):
     Parameters
     ----------
     image : 2D array
-        DESCRIPTION.
 
     Returns
     -------
@@ -74,6 +72,7 @@ def reshape_and_normalize(image):
 
     '''
     return image.reshape(-1).astype(np.float64) / 255
+
 
 def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encoding_type="amplitude"):
     '''
@@ -100,7 +99,7 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encodin
 
     '''
     images = np.asarray(images)
-    if images.ndim == 2:              #For the case of single or array of pictures
+    if images.ndim == 2:  # For the case of single or array of pictures
         images = images[None, ...]
     fields = []
     for img in images:
@@ -116,6 +115,7 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encodin
                 E = E / nrm
         fields.append(E)
     return np.array(fields)
+
 
 def amplitude_encoding(image, theta_enc=1):
     '''
@@ -136,9 +136,11 @@ def amplitude_encoding(image, theta_enc=1):
     '''
     return (image * theta_enc).astype(complex)
 
+
 def phase_encoding(image, theta_enc=1):
     """Encode pixel values in the phase, constant amplitude."""
     return np.exp(1j * theta_enc * np.pi * image)
+
 
 def _balanced_indices(y, values, number):
     '''
@@ -163,7 +165,8 @@ def _balanced_indices(y, values, number):
         Positions into y, grouped by class.
     '''
     per_class = [np.flatnonzero(y == v) for v in values]
-    avail = min(len(idx) for idx in per_class)          # smallest class caps it
+    avail = min(len(idx)
+                for idx in per_class)          # smallest class caps it
 
     if number is None:
         n_each = avail
@@ -250,7 +253,8 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     E_train, y_train, E_test, y_test
         Fields as (N, B) complex, labels as (B,).
     """
-    X_all, y_all, _, _ = load_mnist(values)     # discard MNIST's own test split
+    X_all, y_all, _, _ = load_mnist(
+        values)     # discard MNIST's own test split
     rng = np.random.default_rng(seed)
 
     # shuffle the whole pool once
@@ -269,8 +273,8 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     # encode ONLY the selected images -- down_sample is the expensive part
     E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy,
                            encoding_type=encoding).T
-    E_test  = encode_batch(X_test,  m_side, theta_enc, normalize_energy,
-                           encoding_type=encoding).T
+    E_test = encode_batch(X_test,  m_side, theta_enc, normalize_energy,
+                          encoding_type=encoding).T
 
     if verbose:
         for name, y in (("Train", y_train), ("Test ", y_test)):

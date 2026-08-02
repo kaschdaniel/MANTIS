@@ -1,6 +1,7 @@
 import numpy as np
 from metrics import confusion_matrix, accuracy
 
+
 def linear_regression(X_train, y_train, X_test, y_test):
     '''
     Least-squares linear regression as a linear baseline classifier.
@@ -38,14 +39,14 @@ def linear_regression(X_train, y_train, X_test, y_test):
     # Change y labels from 1 and 7 to 0 and 1
     y_train = (y_train == 7).astype(int)
     y_test = (y_test == 7).astype(int)
-    
+
     # MODEL TRAINING
     F = np.vstack([np.ones(len(X_train.T)), X_train]).T
     # Calculate Moore-Penrose pseudoinverse
     theta = np.linalg.pinv(F) @ y_train
 
     # MODEL TESTING
-    y_pred = theta[0] + np.sum(theta[1:] * X_test.T, axis = 1)
+    y_pred = theta[0] + np.sum(theta[1:] * X_test.T, axis=1)
     y_pred_label = (y_pred >= 0.5).astype(np.float64)
 
     conf_matrix = confusion_matrix(y_test, y_pred_label, classes=(0, 1))

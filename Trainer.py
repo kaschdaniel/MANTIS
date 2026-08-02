@@ -1,5 +1,8 @@
 from dataclasses import dataclass, asdict, fields
-import numpy as np, time, json, pathlib
+import numpy as np
+import time
+import json
+import pathlib
 from tqdm.auto import tqdm
 
 from mesh import MZIMesh
@@ -45,16 +48,23 @@ class TrainConfig:
             self.detectors = (self.N // 3, 2 * self.N // 3)
 
 # Helper-Functions
+
+
 def _copy(params):
     """Deep copy of a weight list -- step() updates the arrays in place."""
     return [p.copy() for p in params]
 
+
 def _jsonable(o):
     """Convert NumPy scalars/arrays that json does not know about."""
-    if isinstance(o, np.integer):  return int(o)
-    if isinstance(o, np.floating): return float(o)
-    if isinstance(o, np.ndarray):  return o.tolist()
+    if isinstance(o, np.integer):
+        return int(o)
+    if isinstance(o, np.floating):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
     raise TypeError(f"not JSON serializable: {type(o)}")
+
 
 class Trainer:
     """Adjoint-based gradient descent on an MZI mesh.
@@ -64,15 +74,17 @@ class Trainer:
     once, at the end, via evaluate().
     """
 
-    def __init__(self, mesh, cfg: TrainConfig): #setting up trainer object
+    def __init__(self, mesh, cfg: TrainConfig):  # setting up trainer object
         if mesh.N != cfg.N:
             raise ValueError(f"mesh has N={mesh.N} but cfg.m_side={cfg.m_side} "
                              f"implies N={cfg.N} -- encoding and mesh disagree")
         if max(cfg.detectors) >= mesh.N:
-            raise ValueError(f"detector {max(cfg.detectors)} outside N={mesh.N}")
-        self.mesh, self.cfg = mesh, cfg  #config contains all the used parameters for reproducability
+            raise ValueError(
+                f"detector {max(cfg.detectors)} outside N={mesh.N}")
+        # config contains all the used parameters for reproducability
+        self.mesh, self.cfg = mesh, cfg
         self.rng = np.random.default_rng(cfg.param_init_seed)
-        #Initiating mesh according to arguments
+        # Initiating mesh according to arguments
         init = mesh.init_haar if cfg.init == "haar" else mesh.init_random
         self.thetas, self.phis = init(self.rng)
         self.history = {"loss": [], "acc": [], "grad_norm": [],
@@ -84,25 +96,28 @@ class Trainer:
         """Transfer matrices for the current weights. 
         Rebuilt after every update, since the weights change"""
         return self.mesh.layer_matrices_separate(
-            self.thetas, self.phis, self.cfg.eta_bs, self.cfg.alpha_fiber) #potential bottle neck
+            self.thetas, self.phis, self.cfg.eta_bs, self.cfg.alpha_fiber)  # potential bottle neck
 
-    def step(self, E_batch, y_batch): #this is one parameter adjustment
+    def step(self, E_batch, y_batch):  # this is one parameter adjustment
         """One gradient step on one minibatch. Returns (loss, gradient norm)."""
         cfg = self.cfg
         d1, d7 = cfg.detectors
         layers = self._layers()
-        #according to derivation in report chapter 2.3.4
-        fh = forward_history(E_batch, layers)                     # forward fields
+        # according to derivation in report chapter 2.3.4
+        # forward fields
+        fh = forward_history(E_batch, layers)
         Gam = adjoint_source(fh, y_batch, d1, d7, cfg.loss_kind)  # Gamma_L
-        bh = backward_history(Gam, layers)                        # adjoint fields
+        # adjoint fields
+        bh = backward_history(Gam, layers)
         g_th, g_ph = gradient(fh, bh, self.mesh.plan)
 
         # Descent: minus the gradient, element-wise per layer
         for l in range(len(self.thetas)):
             self.thetas[l] -= cfg.learning_rate * g_th[l]
-            self.phis[l]   -= cfg.learning_rate * g_ph[l]
+            self.phis[l] -= cfg.learning_rate * g_ph[l]
 
-        loss = np.mean(loss_function(fh, y_batch, d1, d7, cfg.loss_kind)) #computing mean value of loss functions for given batch
+        # computing mean value of loss functions for given batch
+        loss = np.mean(loss_function(fh, y_batch, d1, d7, cfg.loss_kind))
         grad_norm = np.sqrt(sum(np.sum(g**2) for g in g_th + g_ph))
         return loss, grad_norm
 
@@ -122,38 +137,50 @@ class Trainer:
         cfg = self.cfg
         t0 = time.perf_counter()
         best_loss = np.inf
-        best_params = (_copy(self.thetas), _copy(self.phis)) #tracking all time best found parameters
+        # tracking all time best found parameters
+        best_params = (_copy(self.thetas), _copy(self.phis))
         wait = 0
         # Time tracking using tqdm
         num_samples = E_train.shape[1]
-        batches_per_epoch = np.ceil(num_samples / cfg.batch_size) #how many batches per sample
+        # how many batches per sample
+        batches_per_epoch = np.ceil(num_samples / cfg.batch_size)
         total_steps = cfg.max_epochs * batches_per_epoch
-        with tqdm(total=total_steps, desc="Starte Training...") as pbar: #Feedback for progress / estimated duration
-            for epoch in range(cfg.max_epochs): #outer loop over epochs
+        # Feedback for progress / estimated duration
+        with tqdm(total=total_steps, desc="Starte Training...") as pbar:
+            for epoch in range(cfg.max_epochs):  # outer loop over epochs
                 idx = self.rng.permutation(E_train.shape[1])
                 losses, norms = [], []
                 # Saving loss for every gradient step to see effect of batchsize
-                for s in range(0, len(idx), cfg.batch_size):    #inner loop over batches, last batch can be clipped
-                    b = idx[s:s + cfg.batch_size]               #but np.mean is robust against that case
-                    loss, gn = self.step(E_train[:, b], y_train[b]) # batch loss and gradient for one parameter adjustment
-                    losses.append(loss); norms.append(gn)           #tracking loss
-                    self.history["batch_loss"].append(float(loss))  #""
-                    #Plotting time progress using tqdm
-                    pbar.update(1) #for tqdm progress tracking
+                # inner loop over batches, last batch can be clipped
+                for s in range(0, len(idx), cfg.batch_size):
+                    # but np.mean is robust against that case
+                    b = idx[s:s + cfg.batch_size]
+                    # batch loss and gradient for one parameter adjustment
+                    loss, gn = self.step(E_train[:, b], y_train[b])
+                    losses.append(loss)
+                    norms.append(gn)  # tracking loss
+                    self.history["batch_loss"].append(float(loss))  # ""
+                    # Plotting time progress using tqdm
+                    pbar.update(1)  # for tqdm progress tracking
                     progr = len(self.history["batch_loss"]) / batches_per_epoch
-                    pbar.set_description(f"Epoch {progr:.2f}/{cfg.max_epochs} | Loss: {loss:.4f}") #return live values into console
+                    # return live values into console
+                    pbar.set_description(
+                        f"Epoch {progr:.2f}/{cfg.max_epochs} | Loss: {loss:.4f}")
 
                 # outer (epoch-) loop
                 epoch_loss = float(np.mean(losses))
-                _, acc = self.evaluate(E_train, y_train) #tracking epoch accuracy
-                self.history["loss"].append(epoch_loss)  #adding values to history
+                # tracking epoch accuracy
+                _, acc = self.evaluate(E_train, y_train)
+                # adding values to history
+                self.history["loss"].append(epoch_loss)
                 self.history["acc"].append(acc)
                 self.history["grad_norm"].append(float(np.mean(norms)))
                 # step index at which this epoch ended, for marking epoch
                 # boundaries when plotting batch_loss
-                self.history["epoch_end_step"].append(len(self.history["batch_loss"]))
+                self.history["epoch_end_step"].append(
+                    len(self.history["batch_loss"]))
 
-                #Abort criteria
+                # Abort criteria
                 if epoch_loss < best_loss - cfg.min_delta:
                     best_loss, wait = epoch_loss, 0
                     best_params = (_copy(self.thetas), _copy(self.phis))
@@ -200,7 +227,7 @@ class Trainer:
         }
         path = pathlib.Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "x") as f: #if f exists already, throw expection
+        with open(path, "x") as f:  # if f exists already, throw expection
             json.dump(state, f, indent=2, default=_jsonable)
         return path
 
@@ -215,7 +242,8 @@ class Trainer:
         unknown = set(state["cfg"]) - known
         if unknown:
             print(f"ignoring unknown config fields: {sorted(unknown)}")
-        cfg = TrainConfig(**{k: v for k, v in state["cfg"].items() if k in known})
+        cfg = TrainConfig(
+            **{k: v for k, v in state["cfg"].items() if k in known})
 
         # reconstruct plan: ("mzi", [0, 2, ...]) or ("perm", array)
         plan = []
