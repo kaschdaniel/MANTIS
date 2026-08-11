@@ -14,8 +14,8 @@ from keras.datasets import mnist
 
 def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
                             seed=1550, balanced=True, split_ratio=0.8):
-    def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test):
-        return linear_regression(E_train, Y_train, E_test, Y_test)[2]
+    def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, classes=(1,7)):
+        return linear_regression(E_train, Y_train, E_test, Y_test, classes)[2]
 
     ms = [1, 2, 4, 6, 8, 10, 16, 20, 28]
 
@@ -27,7 +27,7 @@ def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
             values, number, m_side, theta_enc, norm_energy,
             seed, balanced, split_ratio)
         acc_normed.append(accuracy_of_linear_regression(
-            E_train, Y_train, E_test, Y_test))
+            E_train, Y_train, E_test, Y_test, values))
     print(acc_normed)
     plt.plot(ms, acc_normed, marker="o", markersize=2,
              label="w/ energy normalization")
@@ -40,7 +40,7 @@ def linear_regression_sweep(values=np.array([1, 7]), number=2000, theta_enc=1,
             values, number, m_side, theta_enc, norm_energy,
             seed, balanced, split_ratio)
         acc_not_normed.append(accuracy_of_linear_regression(
-            E_train, Y_train, E_test, Y_test))
+            E_train, Y_train, E_test, Y_test, values))
     print(acc_not_normed)
     plt.plot(ms, acc_not_normed, marker="o", markersize=2,
              label="w/o energy normalization")
@@ -553,7 +553,7 @@ def read_sweep(sweep_param):
 
 def main():
     # Set standard parameters
-    values = np.array([1, 7])  # digits you want from the mnist dataset
+    values = np.array([4, 9])  # digits you want from the mnist dataset
     number = 2000  # Sets number of samples you want to get in total
     m = 10  # side length (pixel) of mnist image after downsampling
     norm_energy = True  # Bool for if energy of encoded image should be normalized or not
@@ -565,21 +565,21 @@ def main():
 
     # Standard parameters specific to OML system
     theta_enc = 1
-    encoding = 'amplitude'
+    encoding = 'phase'
     detectors = (33, 66)
     loss_kind = 'mse'
-    learning_rate = 1.3
+    learning_rate = 1
     batch_size = 64
     init = "haar"
-    max_epochs = 5
-    patience = 1
-    min_delta = 1e-3
+    max_epochs = 40
+    patience = 10
+    min_delta = 1e-10
     eta_bs = 1.0
     alpha_fiber = 0.0
 
     # Linear regression
-    # linear_regression_sweep(values, number, theta_enc,
-    #                         seed, balanced, split_ratio)
+    linear_regression_sweep(values, number, theta_enc,
+                            seed, balanced, split_ratio)
 
     # Training with standard_parameters
     # standard_training(values, number, m, theta_enc, norm_energy,
@@ -594,7 +594,7 @@ def main():
                                 detectors, loss_kind, learning_rate, batch_size,
                                 init, max_epochs, patience, min_delta,
                                 eta_bs, alpha_fiber, verbose,
-                                save_path="results/final/best_model2.json")
+                                save_path="results/final/best_model_digits4_9.json")
 
     # trainer = Trainer.load("results/final/best_model.json")
     # print(trainer.extra["test_acc"])

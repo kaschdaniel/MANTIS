@@ -126,7 +126,7 @@ class Trainer:
         d1, d7 = self.cfg.detectors
         E_out = forward(E, self._layers())
         loss = np.mean(loss_function(E_out, y, d1, d7, self.cfg.loss_kind))
-        conf = confusion_matrix(y, predict(E_out, d1, d7), classes=(1, 7))
+        conf = confusion_matrix(y, predict(E_out, d1, d7), classes=(4, 9))
         return loss, accuracy(conf)
 
     def fit(self, E_train, y_train):

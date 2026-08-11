@@ -19,7 +19,7 @@ def detection(E):
     return np.abs(E)**2
 
 
-def predict(E, det1=0, det7=-1):
+def predict(E, det1=0, det7=-1, classes=(4, 9)):
     '''
     Returns winner following >>winner takes it all<< comparing detectors of index det1 and det7
 
@@ -40,10 +40,10 @@ def predict(E, det1=0, det7=-1):
     '''
     Efield = E[-1] if E.ndim == 3 else E
     I = detection(Efield)
-    return np.where(I[det1] >= I[det7], 1, 7)
+    return np.where(I[det1] >= I[det7], classes[0], classes[1])
 
 
-def _detector_scores(E, y, det1, det7):
+def _detector_scores(E, y, det1, det7, classes=(4, 9)):
     """Extract detector intensities and one-hot targets.
 
     Returns
@@ -65,14 +65,14 @@ def _detector_scores(E, y, det1, det7):
     I = detection(Efield)
     s1, s7 = I[det1], I[det7]
     y = np.atleast_1d(y)
-    t1 = (y == 1).astype(float)
-    t7 = (y == 7).astype(float)
+    t1 = (y == classes[0]).astype(float)
+    t7 = (y == classes[1]).astype(float)
     if len(t1) != Efield.shape[1]:
         raise ValueError(f"{len(t1)} Labels, but {Efield.shape[1]} Samples")
     return Efield, s1, s7, t1, t7
 
 
-def loss_function(E, y, det1, det7, kind="mse"):
+def loss_function(E, y, det1, det7, kind="mse", classes=(4, 9)):
     """Scalar loss and per-sample loss for a batch.
 
     Parameters
@@ -90,7 +90,7 @@ def loss_function(E, y, det1, det7, kind="mse"):
     if kind not in LOSS_KINDS:
         raise ValueError(f"unknown loss kind: {kind!r}")
     # evaluating intensities at chosen detectors
-    _, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7)
+    _, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7, classes)
     per_sample, _, _ = LOSS_KINDS[kind](s1, s7, t1, t7)
     return per_sample  # returns loss per batch using given LOSS kinds.
 

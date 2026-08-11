@@ -4,7 +4,6 @@ from skimage.transform import downscale_local_mean
 from skimage.transform import resize
 from keras.datasets import mnist
 
-
 def load_mnist(values):
     '''
     Loads MNIST data of given digits
