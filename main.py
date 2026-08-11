@@ -553,7 +553,7 @@ def read_sweep(sweep_param):
 
 def main():
     # Set standard parameters
-    values = np.array([2, 3])  # digits you want from the mnist dataset
+    values = np.array([3, 8])  # digits you want from the mnist dataset
     number = 2000  # Sets number of samples you want to get in total
     m = 10  # side length (pixel) of mnist image after downsampling
     norm_energy = True  # Bool for if energy of encoded image should be normalized or not
@@ -594,7 +594,7 @@ def main():
                                 detectors, loss_kind, learning_rate, batch_size,
                                 init, max_epochs, patience, min_delta,
                                 eta_bs, alpha_fiber, verbose,
-                                save_path="results/final/best_model_digits23.json")
+                                save_path="results/final/best_model_digits79.json")
 
     # trainer = Trainer.load("results/final/best_model.json")
     # print(trainer.extra["test_acc"])
