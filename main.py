@@ -81,9 +81,9 @@ def standard_training(values, number, m, theta_enc, normalize_energy,
     print(cfg)
 
     trainer = Trainer(mesh, cfg)
-    history = trainer.fit(E_train, Y_train)
+    history = trainer.fit(E_train, Y_train, values)
 
-    test_loss, test_acc = trainer.evaluate(E_test, Y_test)
+    test_loss, test_acc = trainer.evaluate(E_test, Y_test, values)
     trainer.test_acc = test_acc
     print(f"validation acc {history['acc'][-1]:.4f} | test acc {test_acc:.4f} | "
           f"{len(history['loss'])} epochs, {trainer.train_time:.1f}s")
@@ -553,7 +553,7 @@ def read_sweep(sweep_param):
 
 def main():
     # Set standard parameters
-    values = np.array([4, 9])  # digits you want from the mnist dataset
+    values = np.array([2, 3])  # digits you want from the mnist dataset
     number = 2000  # Sets number of samples you want to get in total
     m = 10  # side length (pixel) of mnist image after downsampling
     norm_energy = True  # Bool for if energy of encoded image should be normalized or not
@@ -594,7 +594,7 @@ def main():
                                 detectors, loss_kind, learning_rate, batch_size,
                                 init, max_epochs, patience, min_delta,
                                 eta_bs, alpha_fiber, verbose,
-                                save_path="results/final/best_model_digits4_9.json")
+                                save_path="results/final/best_model_digits23.json")
 
     # trainer = Trainer.load("results/final/best_model.json")
     # print(trainer.extra["test_acc"])

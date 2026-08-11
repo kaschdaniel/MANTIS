@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def confusion_matrix(y_true, y_pred, classes=(4, 9)):
+def confusion_matrix(y_true, y_pred, classes):
     '''
     Confusion matrix for arbitrary label values.
 
@@ -39,7 +39,7 @@ def accuracy(conf):
     return np.trace(conf) / conf.sum()
 
 
-def print_confusion(conf, classes=(1, 7)):
+def print_confusion(conf, classes):
     '''Print the confusion matrix with labelled rows and columns.'''
     print("            predicted")
     print("        " + "".join(f"{c:>7}" for c in classes))

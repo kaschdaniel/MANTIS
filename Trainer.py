@@ -98,7 +98,7 @@ class Trainer:
         return self.mesh.layer_matrices_separate(
             self.thetas, self.phis, self.cfg.eta_bs, self.cfg.alpha_fiber)  # potential bottle neck
 
-    def step(self, E_batch, y_batch):  # this is one parameter adjustment
+    def step(self, E_batch, y_batch, digits):  # this is one parameter adjustment
         """One gradient step on one minibatch. Returns (loss, gradient norm)."""
         cfg = self.cfg
         d1, d7 = cfg.detectors
@@ -106,7 +106,7 @@ class Trainer:
         # according to derivation in report chapter 2.3.4
         # forward fields
         fh = forward_history(E_batch, layers)
-        Gam = adjoint_source(fh, y_batch, d1, d7, cfg.loss_kind)  # Gamma_L
+        Gam = adjoint_source(fh, y_batch, d1, d7, cfg.loss_kind, digits)  # Gamma_L
         # adjoint fields
         bh = backward_history(Gam, layers)
         g_th, g_ph = gradient(fh, bh, self.mesh.plan)
@@ -117,19 +117,19 @@ class Trainer:
             self.phis[l] -= cfg.learning_rate * g_ph[l]
 
         # computing mean value of loss functions for given batch
-        loss = np.mean(loss_function(fh, y_batch, d1, d7, cfg.loss_kind))
+        loss = np.mean(loss_function(fh, y_batch, d1, d7, cfg.loss_kind, digits))
         grad_norm = np.sqrt(sum(np.sum(g**2) for g in g_th + g_ph))
         return loss, grad_norm
 
-    def evaluate(self, E, y):
+    def evaluate(self, E, y, digits):
         """Loss and accuracy on any data set, without changing the weights."""
         d1, d7 = self.cfg.detectors
         E_out = forward(E, self._layers())
-        loss = np.mean(loss_function(E_out, y, d1, d7, self.cfg.loss_kind))
-        conf = confusion_matrix(y, predict(E_out, d1, d7), classes=(4, 9))
+        loss = np.mean(loss_function(E_out, y, d1, d7, self.cfg.loss_kind, digits))
+        conf = confusion_matrix(y, predict(E_out, d1, d7, digits), digits)
         return loss, accuracy(conf)
 
-    def fit(self, E_train, y_train):
+    def fit(self, E_train, y_train, digits):
         """Training function. Abort is set by patience and min_delta or max_epochs
         -> If in 'patience' epochs the (training)loss changes less than min_delta, abort
         -> If max_epochs are reached -> abort
@@ -156,7 +156,7 @@ class Trainer:
                     # but np.mean is robust against that case
                     b = idx[s:s + cfg.batch_size]
                     # batch loss and gradient for one parameter adjustment
-                    loss, gn = self.step(E_train[:, b], y_train[b])
+                    loss, gn = self.step(E_train[:, b], y_train[b], digits)
                     losses.append(loss)
                     norms.append(gn)  # tracking loss
                     self.history["batch_loss"].append(float(loss))  # ""
@@ -170,7 +170,7 @@ class Trainer:
                 # outer (epoch-) loop
                 epoch_loss = float(np.mean(losses))
                 # tracking epoch accuracy
-                _, acc = self.evaluate(E_train, y_train)
+                _, acc = self.evaluate(E_train, y_train, digits)
                 # adding values to history
                 self.history["loss"].append(epoch_loss)
                 self.history["acc"].append(acc)

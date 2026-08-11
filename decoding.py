@@ -19,7 +19,7 @@ def detection(E):
     return np.abs(E)**2
 
 
-def predict(E, det1=0, det7=-1, classes=(4, 9)):
+def predict(E, det1=0, det7=-1, classes=(1,7)):
     '''
     Returns winner following >>winner takes it all<< comparing detectors of index det1 and det7
 
@@ -43,7 +43,7 @@ def predict(E, det1=0, det7=-1, classes=(4, 9)):
     return np.where(I[det1] >= I[det7], classes[0], classes[1])
 
 
-def _detector_scores(E, y, det1, det7, classes=(4, 9)):
+def _detector_scores(E, y, det1, det7, classes):
     """Extract detector intensities and one-hot targets.
 
     Returns
@@ -72,7 +72,7 @@ def _detector_scores(E, y, det1, det7, classes=(4, 9)):
     return Efield, s1, s7, t1, t7
 
 
-def loss_function(E, y, det1, det7, kind="mse", classes=(4, 9)):
+def loss_function(E, y, det1, det7, kind="mse", classes=(1,7)):
     """Scalar loss and per-sample loss for a batch.
 
     Parameters
@@ -95,9 +95,9 @@ def loss_function(E, y, det1, det7, kind="mse", classes=(4, 9)):
     return per_sample  # returns loss per batch using given LOSS kinds.
 
 
-def adjoint_source(E, y, det1, det7, kind="mse_norm"):
+def adjoint_source(E, y, det1, det7, kind="mse_norm", digits=(1,7)):
     """Gamma_L: Initial vector for backward propagation (Hughes convention)."""
-    Efield, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7)
+    Efield, s1, s7, t1, t7 = _detector_scores(E, y, det1, det7, digits)
     _, dL_ds1, dL_ds7 = LOSS_KINDS[kind](s1, s7, t1, t7)
     B = Efield.shape[1] if Efield.ndim == 2 else 1
     Gam = np.zeros_like(Efield)
