@@ -1,11 +1,10 @@
 import numpy as np
-from skimage import data, color
-from skimage.transform import downscale_local_mean
-from skimage.transform import resize
 from keras.datasets import mnist
+from skimage.transform import resize
+
 
 def load_mnist(values):
-    '''
+    """
     Loads MNIST data of given digits
 
     Parameters
@@ -24,17 +23,15 @@ def load_mnist(values):
     y_test : 1D array
         Labels for testing data, given as presented digit (e.g. 7).
 
-    '''
+    """
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train, X_test = X_train[np.isin(
-        y_train, values)], X_test[np.isin(y_test, values)]
-    y_train, y_test = y_train[np.isin(
-        y_train, values)], y_test[np.isin(y_test, values)]
+    X_train, X_test = X_train[np.isin(y_train, values)], X_test[np.isin(y_test, values)]
+    y_train, y_test = y_train[np.isin(y_train, values)], y_test[np.isin(y_test, values)]
     return X_train, y_train, X_test, y_test
 
 
 def down_sample(image, m_side=10):
-    '''
+    """
     Returns down-sampled image using resize function from skimage.
 
     Parameters
@@ -47,17 +44,16 @@ def down_sample(image, m_side=10):
     Returns
     -------
     image_downsampled : 3D Array
-    '''
+    """
     image = np.asarray(image, dtype=float)
     assert image.shape[0] == image.shape[1], "Image not quadratic"
-    out = resize(image, (m_side, m_side), anti_aliasing=True,
-                 preserve_range=True)
+    out = resize(image, (m_side, m_side), anti_aliasing=True, preserve_range=True)
     assert out.shape == (m_side, m_side)  # assert output image is quadratic
     return out
 
 
 def reshape_and_normalize(image):
-    '''
+    """
     Returns normalized vector of image.
 
     Parameters
@@ -69,12 +65,12 @@ def reshape_and_normalize(image):
     1D array
         Normalized vector.
 
-    '''
+    """
     return image.reshape(-1).astype(np.float64) / 255
 
 
 def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encoding_type="amplitude"):
-    '''
+    """
     Reshapes, normalizes and encodes batch of images into electrical field amplitude.
     Works for single images as well.
 
@@ -96,7 +92,7 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encodin
     Array
         Array of normalized amplitude-encoded electrical fields as vectors.
 
-    '''
+    """
     images = np.asarray(images)
     if images.ndim == 2:  # For the case of single or array of pictures
         images = images[None, ...]
@@ -117,7 +113,7 @@ def encode_batch(images, m_side=10, theta_enc=1, normalize_energy=False, encodin
 
 
 def amplitude_encoding(image, theta_enc=1):
-    '''
+    """
     Encode image information in amplitude of electric field
 
     Parameters
@@ -132,7 +128,7 @@ def amplitude_encoding(image, theta_enc=1):
     E : 1D complex numpy array
         Amplitude-encoded electric field
 
-    '''
+    """
     return (image * theta_enc).astype(complex)
 
 
@@ -142,7 +138,7 @@ def phase_encoding(image, theta_enc=1):
 
 
 def _balanced_indices(y, values, number):
-    '''
+    """
     Positions of an equal number of samples per class.
 
     The pool is expected to be shuffled already, so taking the first n of
@@ -162,24 +158,22 @@ def _balanced_indices(y, values, number):
     -------
     1D array of int
         Positions into y, grouped by class.
-    '''
+    """
     per_class = [np.flatnonzero(y == v) for v in values]
-    avail = min(len(idx)
-                for idx in per_class)          # smallest class caps it
+    avail = min(len(idx) for idx in per_class)  # smallest class caps it
 
     if number is None:
         n_each = avail
     else:
         n_each = number // len(values)
         if n_each > avail:
-            print(f"Only {avail} samples per class available "
-                  f"({len(values)*avail} total, requested {number}).")
+            print(f"Only {avail} samples per class available ({len(values) * avail} total, requested {number}).")
             n_each = avail
     return np.concatenate([idx[:n_each] for idx in per_class])
 
 
 def split(X, y, values, split_ratio=0.8, rng=None):
-    '''
+    """
     Split a data set into training and testing parts, balanced per class.
 
     The split is applied within each class separately, so both parts keep
@@ -199,7 +193,7 @@ def split(X, y, values, split_ratio=0.8, rng=None):
     Returns
     -------
     X_train, y_train, X_test, y_test
-    '''
+    """
     rng = np.random.default_rng() if rng is None else rng
     train_i, test_i = [], []
     for v in values:
@@ -213,9 +207,7 @@ def split(X, y, values, split_ratio=0.8, rng=None):
     return X[train_i], y[train_i], X[test_i], y[test_i]
 
 
-def get_data(values, number=None, m_side=10, theta_enc=1,
-             normalize_energy=False, seed=None, balanced=True,
-             split_ratio=0.8, verbose=True, encoding="amplitude"):
+def get_MNIST_data(values, number=None, m_side=10, theta_enc=1, normalize_energy=False, seed=None, balanced=True, split_ratio=0.8, verbose=True, encoding="amplitude"):
     """Load, sample, split and encode MNIST data.
 
     Only MNIST's own training split is used as the pool; its test split is
@@ -252,8 +244,7 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     E_train, y_train, E_test, y_test
         Fields as (N, B) complex, labels as (B,).
     """
-    X_all, y_all, _, _ = load_mnist(
-        values)     # discard MNIST's own test split
+    X_all, y_all, _, _ = load_mnist(values)  # discard MNIST's own test split
     rng = np.random.default_rng(seed)
 
     # shuffle the whole pool once
@@ -261,19 +252,15 @@ def get_data(values, number=None, m_side=10, theta_enc=1,
     X_all, y_all = X_all[perm], y_all[perm]
 
     # keep `number` samples, balanced if requested
-    keep = _balanced_indices(y_all, values, number) if balanced \
-        else np.arange(len(y_all))[:number]
+    keep = _balanced_indices(y_all, values, number) if balanced else np.arange(len(y_all))[:number]
     X_all, y_all = X_all[keep], y_all[keep]
 
     # split into training and testing, both balanced per class
-    X_train, y_train, X_test, y_test = split(X_all, y_all, values,
-                                             split_ratio, rng)
+    X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
 
     # encode ONLY the selected images -- down_sample is the expensive part
-    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy,
-                           encoding_type=encoding).T
-    E_test = encode_batch(X_test,  m_side, theta_enc, normalize_energy,
-                          encoding_type=encoding).T
+    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
 
     if verbose:
         for name, y in (("Train", y_train), ("Test ", y_test)):
