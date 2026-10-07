@@ -20,7 +20,6 @@ def linear_regression_sweep(
 ):
 
     def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, classes=(1, 7)):
-
         return linear_regression(E_train, Y_train, E_test, Y_test, classes)[2]
 
     ms = [1, 2, 4, 6, 8, 10, 16, 20, 28]
@@ -162,7 +161,6 @@ def training_compare_initialization(
     alpha_fiber,
     verbose,
 ):
-
     sweep = ["haar", "random"]
     sweep_label = "initialization"
 

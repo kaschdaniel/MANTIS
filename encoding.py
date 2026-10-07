@@ -167,7 +167,9 @@ def _balanced_indices(y, values, number):
     else:
         n_each = number // len(values)
         if n_each > avail:
-            print(f"Only {avail} samples per class available ({len(values) * avail} total, requested {number}).")
+            print(
+                f"Only {avail} samples per class available ({len(values) * avail} total, requested {number})."
+            )
             n_each = avail
     return np.concatenate([idx[:n_each] for idx in per_class])
 
@@ -207,7 +209,18 @@ def split(X, y, values, split_ratio=0.8, rng=None):
     return X[train_i], y[train_i], X[test_i], y[test_i]
 
 
-def get_MNIST_data(values, number=None, m_side=10, theta_enc=1, normalize_energy=False, seed=None, balanced=True, split_ratio=0.8, verbose=True, encoding="amplitude"):
+def get_MNIST_data(
+    values,
+    number=None,
+    m_side=10,
+    theta_enc=1,
+    normalize_energy=False,
+    seed=None,
+    balanced=True,
+    split_ratio=0.8,
+    verbose=True,
+    encoding="amplitude",
+):
     """Load, sample, split and encode MNIST data.
 
     Only MNIST's own training split is used as the pool; its test split is
@@ -258,7 +271,7 @@ def get_MNIST_data(values, number=None, m_side=10, theta_enc=1, normalize_energy
     # split into training and testing, both balanced per class
     X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
 
-    # encode ONLY the selected images -- down_sample is the expensive part
+    # encode ONLY the selected images
     E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
     E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
 
@@ -267,3 +280,93 @@ def get_MNIST_data(values, number=None, m_side=10, theta_enc=1, normalize_energy
             counts = {int(v): int(np.sum(y == v)) for v in values}
             print(f"{name}: {len(y):5d} samples, class counts {counts}")
     return E_train, y_train, E_test, y_test
+
+
+def get_spiral_data(
+    saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
+    normalization=True,
+):
+    """Load, sample, split and encode spiral data.
+
+    Parameters
+    ----------
+    TODO: Implement random shuffle (with seed) in "prepare_data" function
+    Returns
+    -------
+    E_train, y_train, E_test, y_test
+        Fields as (N, B) complex, labels as (B,).
+    """
+    values = generate_multiple_spirals(saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
+              normalization=True)  # discard spiral_data
+              
+    rng = np.random.default_rng(seed)
+
+    # shuffle the whole pool once
+    perm = rng.permutation(len(y_all))
+    X_all, y_all = X_all[perm], y_all[perm]
+
+    # keep `number` samples, balanced if requested
+    keep = _balanced_indices(y_all, values, number) if balanced else np.arange(len(y_all))[:number]
+    X_all, y_all = X_all[keep], y_all[keep]
+
+    # split into training and testing, both balanced per class
+    X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
+
+    # encode ONLY the selected images
+    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+
+    if verbose:
+        for name, y in (("Train", y_train), ("Test ", y_test)):
+            counts = {int(v): int(np.sum(y == v)) for v in values}
+            print(f"{name}: {len(y):5d} samples, class counts {counts}")
+    return E_train, y_train, E_test, y_test
+
+
+def generate_multiple_spirals(saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
+              normalization=True):
+    #return a * np.exp(b * t) * np.array([np.cos(t), np.sin(t)])
+    step = theta_max*np.pi/points_per_spiral
+    t = np.linspace(step, theta_max*np.pi, points_per_spiral)
+
+    Spirals = []
+    if normalization:
+        for i in range(0, spirals_number):
+            Spirals.append((t / (theta_max * np.pi)) * np.array([np.cos(t + i * 2 * np.pi / spirals_number),
+                                                                 np.sin(t + i * 2 * np.pi / spirals_number)])
+                           + np.random.uniform(-max_noise / (theta_max * np.pi), max_noise / (theta_max * np.pi),
+                                               points_per_spiral))
+    else:
+        for i in range(0, spirals_number):
+            Spirals.append(
+                t * np.array([np.cos(t + i * 2 * np.pi / spirals_number), np.sin(t + i * 2 * np.pi / spirals_number)])
+                + np.random.uniform(-max_noise, max_noise, points_per_spiral))
+
+    spirals_data = []
+    for index, spiral_i in enumerate(Spirals):
+        # combined_array = np.column_stack(((index+1)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
+        #                                   spiral_i[1].flatten()))
+        combined_array = np.column_stack(((index)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
+                                          spiral_i[1].flatten()))
+        spirals_data.append(combined_array)
+    all_labels_coordinates = np.vstack([combined_array_i for combined_array_i in spirals_data])
+
+    return all_labels_coordinates
+
+def prepare_data(data, test_size=0.2):
+    # Extract X and y from the data
+    XYs = data[:, 1:3]  # last two columns are x, y coordinates
+    labels = data[:, 0].astype(int)  # first column is the label
+    # Split the data into training and testing
+    u_train, u_test, y_train, y_test = train_test_split(XYs, labels, test_size=test_size, random_state=90)
+    # Convert labels to one-hot encoding
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+    return u_train, u_test, y_train, y_test
+
+spiral_data = generate_multiple_spirals(f'{saving_dir}', theta_max,
+                                        points_per_spiral=points_per_spirals,
+                                        spirals_number=number_of_spirals, max_noise=0, normalization=True,
+                                        save_results_in_text_file=False, save_plot=False, show_plot=False)
+
+U_train, U_test, y_train, y_test = prepare_data(spiral_data)
