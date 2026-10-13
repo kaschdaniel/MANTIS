@@ -16,7 +16,7 @@ def linear_regression_sweep_spirals(
     points_per_spiral=250, 
     spirals_number=2, 
     max_noise=0,
-    normalization=True, 
+    unit_radius=True, 
     seed=1550,
     channels=100, 
     padding=0, 
@@ -36,21 +36,22 @@ def linear_regression_sweep_spirals(
     for m_side in ms:
         E_train, Y_train, E_test, Y_test = get_spiral_data(
             theta_max,
-            points_per_spiral, 
-            spirals_number, 
+            points_per_spiral,
+            spirals_number,
             max_noise,
-            normalization, 
+            unit_radius,
+            channels,
+            padding,
+            theta_enc,
+            norm_energy,
             seed,
-            channels, 
-            padding, 
-            theta_enc, 
-            norm_energy, 
             balanced,
             split_ratio,
             verbose,
             encoding="amplitude",
+            return_coords=False
         )
-        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, [0,1]))
+        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0,1])))
     print(acc_normed)
     plt.plot(ms, acc_normed, marker="o", markersize=2, label="w/ energy normalization")
 
@@ -60,22 +61,23 @@ def linear_regression_sweep_spirals(
     for m_side in ms:
         E_train, Y_train, E_test, Y_test = get_spiral_data(
             theta_max,
-            points_per_spiral, 
-            spirals_number, 
+            points_per_spiral,
+            spirals_number,
             max_noise,
-            normalization, 
+            unit_radius,
+            channels,
+            padding,
+            theta_enc,
+            norm_energy,
             seed,
-            channels, 
-            padding, 
-            theta_enc, 
-            norm_energy, 
             balanced,
             split_ratio,
             verbose,
-            encoding,
+            encoding="amplitude",
+            return_coords=False
         )
         acc_not_normed.append(
-            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, [0,1])
+            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0,1]))
         )
     print(acc_not_normed)
     plt.plot(ms, acc_not_normed, marker="o", markersize=2, label="w/o energy normalization")
