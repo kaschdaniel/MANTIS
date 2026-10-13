@@ -282,96 +282,169 @@ def get_MNIST_data(
     return E_train, y_train, E_test, y_test
 
 
-def get_spiral_data(
-    theta_max, #accepts array as well
-    points_per_spiral=250, 
-    spirals_number=4, 
-    max_noise=0,
-    normalization=True, 
-    seed=None,
-    channels=100, #number of channels in the MZI-Mesh, standard-size stays 100
-    padding="", #switch to control if we want to have a repeating vector like (e^(ix), e^(iy), e^(ix), e^(iy), e^(ix), ...) or (e^(ix), 0, e^(iy), 0, e^(ix), 0, e^(iy), 0, e^(ix), ...)
-    theta_enc=1, #for encoding e^(itheta_enc*x)
-    normalize_energy=False, 
+def _spiral_points(theta_max, points_per_spiral, spirals_number, max_noise,
+                   unit_radius, rng):
+    """Archimedean spirals for one or several theta_max values (vectorised).
 
+    Returns (K, S*P, 4) array [x, y, spiral label, theta_max] with
+    K = number of theta_max values, S = spirals_number, P = points_per_spiral.
+    """
+    S, P = spirals_number, points_per_spiral
+    thetas = np.atleast_1d(np.asarray(theta_max, float))           # (K,)
+    th = thetas[:, None, None] * np.pi                              # (K,1,1)
+    t = th * np.arange(1, P + 1) / P                                # (K,1,P) angle along the spiral
+    offset = 2 * np.pi * np.arange(S)[None, :, None] / S            # (1,S,1) rotation per spiral
+
+    r = t / th if unit_radius else t                                # outer end at r=1 if unit_radius
+    scale = 1 / th if unit_radius else 1                            # noise scaled like the radius
+    noise = rng.uniform(-max_noise, max_noise, size=(2, len(thetas), S, P)) * scale
+
+    x = r * np.cos(t + offset) + noise[0]                           # (K,S,P)
+    y = r * np.sin(t + offset) + noise[1]
+    label = np.broadcast_to(np.arange(S)[None, :, None], x.shape)
+    theta = np.broadcast_to(thetas[:, None, None], x.shape)
+    return np.stack([x, y, label, theta], axis=-1).reshape(len(thetas), S * P, 4)
+
+
+def _stratified_split(groups, split_ratio, rng):
+    """Index arrays (train, test): every group split with the same ratio, then shuffled."""
+    train, test = [], []
+    for g in np.unique(groups):
+        idx = rng.permutation(np.flatnonzero(groups == g))
+        n_train = int(round(split_ratio * len(idx)))
+        train.append(idx[:n_train])
+        test.append(idx[n_train:])
+    # shuffle across groups -> spirals and theta_max values are mixed
+    return rng.permutation(np.concatenate(train)), rng.permutation(np.concatenate(test))
+
+
+def encode_points(XY, channels=100, padding=0, theta_enc=1, normalize_energy=False,
+                  encoding="amplitude"):
+    """Encode 2D points as fields of length "channels".
+
+    Pattern (period 2*(padding+1), repeated until "channels" is reached):
+        padding=0 : (a_x, a_y, a_x, a_y, ...)
+        padding=1 : (a_x, 0, a_y, 0, a_x, 0, ...)
+        padding=2 : (a_x, 0, 0, a_y, 0, 0, a_x, ...)
+    with a = theta_enc * x            (encoding="amplitude")
+      or a = exp(i * theta_enc * x)   (encoding="phase").
+
+    XY : (B, 2) coordinates. Returns (B, channels) complex.
+    """
+    if encoding == "amplitude":
+        feat = theta_enc * XY.astype(complex)
+    elif encoding == "phase":
+        feat = np.exp(1j * theta_enc * XY)
+    else:
+        raise ValueError(f"unknown encoding {encoding!r}")
+
+    k = np.arange(channels)
+    filled = k % (padding + 1) == 0                   # positions that carry a value
+    which = (k // (padding + 1)) % 2                  # 0 -> x, 1 -> y
+    E = np.zeros((len(XY), channels), complex)
+    E[:, filled] = feat[:, which[filled]]
+
+    if normalize_energy:                              # sum |E|^2 = 1 per sample
+        norm = np.linalg.norm(E, axis=1, keepdims=True)
+        E = E / np.where(norm > 0, norm, 1)
+    return E
+
+
+def get_spiral_data(
+    theta_max,
+    points_per_spiral=250,
+    spirals_number=4,
+    max_noise=0,
+    unit_radius=True,
+    channels=100,
+    padding=0,
+    theta_enc=1,
+    normalize_energy=False,
+    seed=None,
     balanced=True,
     split_ratio=0.8,
     verbose=True,
     encoding="amplitude",
+    return_coords=False,
 ):
-    """Load, sample, split and encode spiral data.
+    """Generate, split and encode spiral data.
+
+    Points of all theta_max values are pooled and shuffled; each point keeps
+    its spiral label and its theta_max in y.
 
     Parameters
     ----------
-    Returns Dataset(s) Training / Test-Set of the corresponding spirals
+    theta_max : float or array-like of float
+        Total spiral angle in units of pi (theta_max/2 turns), e.g. 3 or
+        np.array([1, 2, 4]). Several values -> one pooled dataset.
+    points_per_spiral : int
+        Points per spiral and theta_max value.
+    spirals_number : int
+        Number of interleaved spirals = number of classes.
+    max_noise : float
+        Uniform noise amplitude per coordinate, in units of the unscaled
+        spiral (neighbouring spirals are 2*pi/spirals_number apart).
+    unit_radius : bool
+        Scale every spiral so its outer end lies at radius 1, independent of
+        theta_max. (Geometry only; field energy is set by normalize_energy.)
+    channels : int
+        Field length N = number of mesh channels.
+    padding : int
+        Number of zero channels after each x and each y value.
+    theta_enc : float
+        Hyperparameter: amplitude factor (amplitude) or phase factor (phase).
+    normalize_energy : bool
+        Whether each field is normalized to unit energy, sum |E|^2 = 1.
+    seed : int or None
+        Seed for noise, split and shuffle. Fix it so the same data is used throughout.
+    balanced : bool
+        Split every (theta_max, spiral) group with the same ratio, so all
+        classes and theta_max values have equal shares in train and test.
+        The pool itself is balanced by construction.
+    split_ratio : float
+        Fraction of the data used for training, e.g. 0.8 for a 4:1 ratio.
+    verbose : bool
+        Print sample counts and class / theta_max distributions.
+    encoding : "amplitude" or "phase"
+    return_coords : bool
+        Additionally return the (B, 2) coordinates, e.g. for plot_spirals.
+
+    Returns
     -------
-    E_train, y_train, E_test, y_test
-    Fields as (N, B) complex, labels as (B,).
+    E_train, y_train, E_test, y_test  (+ U_train, U_test if return_coords)
+        Fields as (N, B) complex.
+        Labels as (B, 2): column 0 spiral label (0 ... spirals_number-1),
+        column 1 theta_max of the point. Training class: y[:, 0].astype(int).
     """
-    def generate_multiple_spirals(theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
-            normalization=True):
-        """ Generates the spirales of """
-        #return a * np.exp(b * t) * np.array([np.cos(t), np.sin(t)])
-        step = theta_max*np.pi/points_per_spiral
-        t = np.linspace(step, theta_max*np.pi, points_per_spiral)
-
-        Spirals = []
-        if normalization:
-            for i in range(0, spirals_number):
-                Spirals.append((t / (theta_max * np.pi)) * np.array([np.cos(t + i * 2 * np.pi / spirals_number),
-                                                                    np.sin(t + i * 2 * np.pi / spirals_number)])
-                            + np.random.uniform(-max_noise / (theta_max * np.pi), max_noise / (theta_max * np.pi),
-                                                points_per_spiral))
-        else:
-            for i in range(0, spirals_number):
-                Spirals.append(
-                    t * np.array([np.cos(t + i * 2 * np.pi / spirals_number), np.sin(t + i * 2 * np.pi / spirals_number)])
-                    + np.random.uniform(-max_noise, max_noise, points_per_spiral))
-
-        spirals_data = []
-        for index, spiral_i in enumerate(Spirals):
-            # combined_array = np.column_stack(((index+1)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
-            #                                   spiral_i[1].flatten()))
-            combined_array = np.column_stack(((index)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
-                                            spiral_i[1].flatten()))
-            spirals_data.append(combined_array)
-        all_labels_coordinates = np.vstack([combined_array_i for combined_array_i in spirals_data])
-
-        return all_labels_coordinates
-
-    def prepare_data(data, test_size=0.2):
-        # Extract X and y from the data
-        XYs = data[:, 1:3]  # last two columns are x, y coordinates
-        labels = data[:, 0].astype(int)  # first column is the label
-        # Split the data into training and testing
-        u_train, u_test, y_train, y_test = train_test_split(XYs, labels, test_size=test_size, random_state=90)
-        # Convert labels to one-hot encoding
-        y_train = to_categorical(y_train)
-        y_test = to_categorical(y_test)
-        return u_train, u_test, y_train, y_test
-
-    values = generate_multiple_spirals(saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
-            normalization=True)  # discard spiral_data
-            
     rng = np.random.default_rng(seed)
 
-    # shuffle the whole pool once
-    perm = rng.permutation(len(y_all))
-    X_all, y_all = X_all[perm], y_all[perm]
+    # generate all spirals for all theta_max values and pool them
+    pool = _spiral_points(theta_max, points_per_spiral, spirals_number,
+                          max_noise, unit_radius, rng).reshape(-1, 4)
+    XY, y_all = pool[:, :2], pool[:, 2:]                       # y_all = [label, theta_max]
 
-    # keep `number` samples, balanced if requested
-    keep = _balanced_indices(y_all, values, number) if balanced else np.arange(len(y_all))[:number]
-    X_all, y_all = X_all[keep], y_all[keep]
+    # split into training and testing; groups = (theta_max, spiral) pairs
+    groups = np.unique(y_all, axis=0, return_inverse=True)[1].ravel()
+    if balanced:
+        i_train, i_test = _stratified_split(groups, split_ratio, rng)
+    else:
+        perm = rng.permutation(len(XY))
+        n_train = int(round(split_ratio * len(XY)))
+        i_train, i_test = perm[:n_train], perm[n_train:]
 
-    # split into training and testing, both balanced per class
-    X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
-
-    # encode ONLY the selected images
-    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
-    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+    # encode, fields as (N, B) like the MNIST data
+    E_train = encode_points(XY[i_train], channels, padding, theta_enc,
+                            normalize_energy, encoding).T
+    E_test = encode_points(XY[i_test], channels, padding, theta_enc,
+                           normalize_energy, encoding).T
+    y_train, y_test = y_all[i_train], y_all[i_test]
 
     if verbose:
         for name, y in (("Train", y_train), ("Test ", y_test)):
-            counts = {int(v): int(np.sum(y == v)) for v in values}
-            print(f"{name}: {len(y):5d} samples, class counts {counts}")
+            cls = {int(c): int(np.sum(y[:, 0] == c)) for c in np.unique(y[:, 0])}
+            ths = {float(t): int(np.sum(y[:, 1] == t)) for t in np.unique(y[:, 1])}
+            print(f"{name}: {len(y):5d} samples, class counts {cls}, theta_max counts {ths}")
+
+    if return_coords:
+        return E_train, y_train, E_test, y_test, XY[i_train], XY[i_test]
     return E_train, y_train, E_test, y_test
