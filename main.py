@@ -9,7 +9,7 @@ from processing import *
 from Trainer import *
 from visualize import *
 from training_functions_MNIST import *
-
+from training_functions_spirals import *
 
 
 ###############################################################################

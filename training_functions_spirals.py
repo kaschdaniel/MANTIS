@@ -48,9 +48,9 @@ def linear_regression_sweep_spirals(
             balanced,
             split_ratio,
             verbose,
-            encoding,
+            encoding="amplitude",
         )
-        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, values))
+        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, [0,1]))
     print(acc_normed)
     plt.plot(ms, acc_normed, marker="o", markersize=2, label="w/ energy normalization")
 
@@ -75,7 +75,7 @@ def linear_regression_sweep_spirals(
             encoding,
         )
         acc_not_normed.append(
-            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, values)
+            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, [0,1])
         )
     print(acc_not_normed)
     plt.plot(ms, acc_not_normed, marker="o", markersize=2, label="w/o energy normalization")
