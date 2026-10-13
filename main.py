@@ -43,11 +43,25 @@ def main():
     
     
     #### SPIRALS ################################################################
+    theta_max = np.pi
+    points_per_spiral=250
+    spirals_number=2
+    max_noise=0
+    normalization=True
+    channels = 100
+    padding = 0
+    
+    # Linear regression
+    linear_regression_sweep_spirals(theta_max, points_per_spiral, spirals_number, 
+        max_noise, normalization, seed, channels, padding, theta_enc,
+        balanced, split_ratio, verbose)
+    
     # trainer = training_with_spirals(values, number, m, theta_enc, norm_energy,
     #                   seed, balanced, split_ratio, encoding,
     #                   detectors, loss_kind, learning_rate, batch_size,
     #                   init, max_epochs, patience, min_delta,
-    #                   eta_bs, alpha_fiber, verbose, 
+    #                   eta_bs, alpha_fiber, padding, theta_max, points_per_spiral, 
+    #                   spirals_number, max_noise, normalization,channels,verbose, 
     #                   save_path="results/spirals_test.json")
     
     #### MNIST ################################################################

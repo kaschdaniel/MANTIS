@@ -10,6 +10,92 @@ from processing import *
 from Trainer import *
 from visualize import *
 
+
+def linear_regression_sweep_spirals(
+    theta_max, #accepts array as well
+    points_per_spiral=250, 
+    spirals_number=2, 
+    max_noise=0,
+    normalization=True, 
+    seed=1550,
+    channels=100, 
+    padding=0, 
+    theta_enc=1,
+    balanced=True,
+    split_ratio=0.8,
+    verbose=True,
+):
+    def accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, classes=(0, 1)):
+        return linear_regression(E_train, Y_train, E_test, Y_test, classes)[2]
+
+    ms = [1, 2, 4, 6, 8, 10, 16, 20, 28]
+    ms = [20]
+    # with energy normalization
+    norm_energy = True
+    acc_normed = []
+    for m_side in ms:
+        E_train, Y_train, E_test, Y_test = get_spiral_data(
+            theta_max,
+            points_per_spiral, 
+            spirals_number, 
+            max_noise,
+            normalization, 
+            seed,
+            channels, 
+            padding, 
+            theta_enc, 
+            norm_energy, 
+            balanced,
+            split_ratio,
+            verbose,
+            encoding,
+        )
+        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, values))
+    print(acc_normed)
+    plt.plot(ms, acc_normed, marker="o", markersize=2, label="w/ energy normalization")
+
+    # without energy normalization
+    norm_energy = False
+    acc_not_normed = []
+    for m_side in ms:
+        E_train, Y_train, E_test, Y_test = get_spiral_data(
+            theta_max,
+            points_per_spiral, 
+            spirals_number, 
+            max_noise,
+            normalization, 
+            seed,
+            channels, 
+            padding, 
+            theta_enc, 
+            norm_energy, 
+            balanced,
+            split_ratio,
+            verbose,
+            encoding,
+        )
+        acc_not_normed.append(
+            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, values)
+        )
+    print(acc_not_normed)
+    plt.plot(ms, acc_not_normed, marker="o", markersize=2, label="w/o energy normalization")
+    plt.xlabel("Side length of Datasets")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(alpha=0.2)
+    plt.savefig(
+        "results/linear_regression/spirals_m_sweep_with_and_without_energy_normalization.png",
+        dpi=600,
+        bbox_inches="tight",
+    )
+    print("Accuracy results of linear regression")
+    print(
+        f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}"
+    )
+    print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
+
+
+
 def training_with_spirals(
     values,
     number,
@@ -30,16 +116,17 @@ def training_with_spirals(
     min_delta,
     eta_bs,
     alpha_fiber,
-    verbose,
+    padding = 0,
+    theta_max=np.pi,
+    points_per_spiral=250,
+    spirals_number=2,
+    max_noise=0,
+    normalization=True,
+    channels=100,
+    verbose=False,
     save_path=None,
 ):
-    padding = 0
-    theta_max=np.pi
-    points_per_spiral=250
-    spirals_number=2
-    max_noise=0
-    normalization=True
-    channels=m**2
+    
     
     # Load and encode data (identical for all tests)
     E_train, Y_train, E_test, Y_test = get_spiral_data(
