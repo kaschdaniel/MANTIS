@@ -429,7 +429,7 @@ def get_spiral_data(
     # generate all spirals, label = spiral index
     XY, y_all = generate_spirals(theta_max, points_per_spiral, spirals_number,
                                  max_noise, unit_radius, rng)
- 
+    
     # split into training and testing, balanced per class if requested
     if balanced:
         i_train, i_test = _stratified_split(y_all, split_ratio, rng)
@@ -449,7 +449,7 @@ def get_spiral_data(
         for name, y in (("Train", y_train), ("Test ", y_test)):
             counts = {int(c): int(np.sum(y == c)) for c in range(spirals_number)}
             print(f"{name}: {len(y):5d} samples, class counts {counts}")
- 
+    
     if return_coords:
         return E_train, y_train, E_test, y_test, XY[i_train], XY[i_test]
     return E_train, y_train, E_test, y_test

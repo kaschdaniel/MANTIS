@@ -123,7 +123,7 @@ def training_with_spirals(
     points_per_spiral=250,
     spirals_number=2,
     max_noise=0,
-    normalization=True,
+    unit_radius=True,
     channels=100,
     verbose=False,
     save_path=None,
@@ -132,20 +132,21 @@ def training_with_spirals(
     
     # Load and encode data (identical for all tests)
     E_train, Y_train, E_test, Y_test = get_spiral_data(
-        theta_max, #accepts array as well
-        points_per_spiral, 
-        spirals_number, 
+        theta_max,
+        points_per_spiral,
+        spirals_number,
         max_noise,
-        normalization, 
-        param_init_seed,
+        unit_radius,
         channels,
-        padding, 
+        padding,
         theta_enc,
-        normalize_energy, 
+        normalize_energy,
+        param_init_seed,
         balanced,
         split_ratio,
         verbose,
         encoding,
+        return_coords=False
     )
 
     # CONFIG + MESH

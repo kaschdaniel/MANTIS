@@ -19,23 +19,23 @@ def main():
     values = np.array([1, 7])  # digits you want from the mnist dataset
     number = 2000  # Sets number of samples you want to get in total
     m = 10  # side length (pixel) of mnist image after downsampling
-    norm_energy = True  # Bool for if energy of encoded image should be normalized or not
+    norm_energy = False  # Bool for if energy of encoded image should be normalized or not
     seed = (
         1550  # Random seed to control random choice of number -pictures out of the available ones,
     )
     # seed = None leads to random results for each iteration
     balanced = True  # Enforcing equality of classes
     split_ratio = 0.8  # Sets training-sample proportion
-    verbose = False
+    verbose = True
     # Standard parameters specific to OML system
     theta_enc = 1
-    encoding = "amplitude"
+    encoding = "phase"
     detectors = (33, 66)
     loss_kind = "mse"
     learning_rate = 1
     batch_size = 64
     init = "haar"
-    max_epochs = 40
+    max_epochs = 100
     patience = 10
     min_delta = 1e-10
     eta_bs = 1.0
@@ -44,25 +44,25 @@ def main():
     
     #### SPIRALS ################################################################
     theta_max = np.pi
-    points_per_spiral=250
+    points_per_spiral=2000
     spirals_number=2
     max_noise=0
-    normalization=True
+    normalization=False
     channels = 100
-    padding = 0
+    padding = 90
     
     # Linear regression
     linear_regression_sweep_spirals(theta_max, points_per_spiral, spirals_number, 
         max_noise, normalization, seed, channels, padding, theta_enc,
         balanced, split_ratio, verbose)
     
-    # trainer = training_with_spirals(values, number, m, theta_enc, norm_energy,
-    #                   seed, balanced, split_ratio, encoding,
-    #                   detectors, loss_kind, learning_rate, batch_size,
-    #                   init, max_epochs, patience, min_delta,
-    #                   eta_bs, alpha_fiber, padding, theta_max, points_per_spiral, 
-    #                   spirals_number, max_noise, normalization,channels,verbose, 
-    #                   save_path="results/spirals_test.json")
+    trainer = training_with_spirals(np.array([0,1]), number, m, theta_enc, norm_energy,
+                      seed, balanced, split_ratio, encoding,
+                      detectors, loss_kind, learning_rate, batch_size,
+                      init, max_epochs, patience, min_delta,
+                      eta_bs, alpha_fiber, padding, theta_max, points_per_spiral, 
+                      spirals_number, max_noise, normalization,channels,verbose, 
+                      save_path="results/spirals_test.json")
     
     #### MNIST ################################################################
     # Linear regression
