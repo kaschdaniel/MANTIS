@@ -298,80 +298,80 @@ def get_spiral_data(
     split_ratio=0.8,
     verbose=True,
     encoding="amplitude",
-    ):
-        """Load, sample, split and encode spiral data.
+):
+    """Load, sample, split and encode spiral data.
 
-        Parameters
-        ----------
-        Returns Dataset(s) Training / Test-Set of the corresponding spirals
-        -------
-        E_train, y_train, E_test, y_test
-        Fields as (N, B) complex, labels as (B,).
-        """
-        def generate_multiple_spirals(theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
-                normalization=True):
-            """ Generates the spirales of """
-            #return a * np.exp(b * t) * np.array([np.cos(t), np.sin(t)])
-            step = theta_max*np.pi/points_per_spiral
-            t = np.linspace(step, theta_max*np.pi, points_per_spiral)
+    Parameters
+    ----------
+    Returns Dataset(s) Training / Test-Set of the corresponding spirals
+    -------
+    E_train, y_train, E_test, y_test
+    Fields as (N, B) complex, labels as (B,).
+    """
+    def generate_multiple_spirals(theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
+            normalization=True):
+        """ Generates the spirales of """
+        #return a * np.exp(b * t) * np.array([np.cos(t), np.sin(t)])
+        step = theta_max*np.pi/points_per_spiral
+        t = np.linspace(step, theta_max*np.pi, points_per_spiral)
 
-            Spirals = []
-            if normalization:
-                for i in range(0, spirals_number):
-                    Spirals.append((t / (theta_max * np.pi)) * np.array([np.cos(t + i * 2 * np.pi / spirals_number),
-                                                                        np.sin(t + i * 2 * np.pi / spirals_number)])
-                                + np.random.uniform(-max_noise / (theta_max * np.pi), max_noise / (theta_max * np.pi),
-                                                    points_per_spiral))
-            else:
-                for i in range(0, spirals_number):
-                    Spirals.append(
-                        t * np.array([np.cos(t + i * 2 * np.pi / spirals_number), np.sin(t + i * 2 * np.pi / spirals_number)])
-                        + np.random.uniform(-max_noise, max_noise, points_per_spiral))
+        Spirals = []
+        if normalization:
+            for i in range(0, spirals_number):
+                Spirals.append((t / (theta_max * np.pi)) * np.array([np.cos(t + i * 2 * np.pi / spirals_number),
+                                                                    np.sin(t + i * 2 * np.pi / spirals_number)])
+                            + np.random.uniform(-max_noise / (theta_max * np.pi), max_noise / (theta_max * np.pi),
+                                                points_per_spiral))
+        else:
+            for i in range(0, spirals_number):
+                Spirals.append(
+                    t * np.array([np.cos(t + i * 2 * np.pi / spirals_number), np.sin(t + i * 2 * np.pi / spirals_number)])
+                    + np.random.uniform(-max_noise, max_noise, points_per_spiral))
 
-            spirals_data = []
-            for index, spiral_i in enumerate(Spirals):
-                # combined_array = np.column_stack(((index+1)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
-                #                                   spiral_i[1].flatten()))
-                combined_array = np.column_stack(((index)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
-                                                spiral_i[1].flatten()))
-                spirals_data.append(combined_array)
-            all_labels_coordinates = np.vstack([combined_array_i for combined_array_i in spirals_data])
+        spirals_data = []
+        for index, spiral_i in enumerate(Spirals):
+            # combined_array = np.column_stack(((index+1)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
+            #                                   spiral_i[1].flatten()))
+            combined_array = np.column_stack(((index)*np.ones(len(spiral_i[0])), spiral_i[0].flatten(),
+                                            spiral_i[1].flatten()))
+            spirals_data.append(combined_array)
+        all_labels_coordinates = np.vstack([combined_array_i for combined_array_i in spirals_data])
 
-            return all_labels_coordinates
+        return all_labels_coordinates
 
-        def prepare_data(data, test_size=0.2):
-            # Extract X and y from the data
-            XYs = data[:, 1:3]  # last two columns are x, y coordinates
-            labels = data[:, 0].astype(int)  # first column is the label
-            # Split the data into training and testing
-            u_train, u_test, y_train, y_test = train_test_split(XYs, labels, test_size=test_size, random_state=90)
-            # Convert labels to one-hot encoding
-            y_train = to_categorical(y_train)
-            y_test = to_categorical(y_test)
-            return u_train, u_test, y_train, y_test
+    def prepare_data(data, test_size=0.2):
+        # Extract X and y from the data
+        XYs = data[:, 1:3]  # last two columns are x, y coordinates
+        labels = data[:, 0].astype(int)  # first column is the label
+        # Split the data into training and testing
+        u_train, u_test, y_train, y_test = train_test_split(XYs, labels, test_size=test_size, random_state=90)
+        # Convert labels to one-hot encoding
+        y_train = to_categorical(y_train)
+        y_test = to_categorical(y_test)
+        return u_train, u_test, y_train, y_test
 
-        values = generate_multiple_spirals(saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
-                normalization=True)  # discard spiral_data
-                
-        rng = np.random.default_rng(seed)
+    values = generate_multiple_spirals(saving_dir, theta_max, points_per_spiral=250, spirals_number=4, max_noise=0,
+            normalization=True)  # discard spiral_data
+            
+    rng = np.random.default_rng(seed)
 
-        # shuffle the whole pool once
-        perm = rng.permutation(len(y_all))
-        X_all, y_all = X_all[perm], y_all[perm]
+    # shuffle the whole pool once
+    perm = rng.permutation(len(y_all))
+    X_all, y_all = X_all[perm], y_all[perm]
 
-        # keep `number` samples, balanced if requested
-        keep = _balanced_indices(y_all, values, number) if balanced else np.arange(len(y_all))[:number]
-        X_all, y_all = X_all[keep], y_all[keep]
+    # keep `number` samples, balanced if requested
+    keep = _balanced_indices(y_all, values, number) if balanced else np.arange(len(y_all))[:number]
+    X_all, y_all = X_all[keep], y_all[keep]
 
-        # split into training and testing, both balanced per class
-        X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
+    # split into training and testing, both balanced per class
+    X_train, y_train, X_test, y_test = split(X_all, y_all, values, split_ratio, rng)
 
-        # encode ONLY the selected images
-        E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
-        E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+    # encode ONLY the selected images
+    E_train = encode_batch(X_train, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
+    E_test = encode_batch(X_test, m_side, theta_enc, normalize_energy, encoding_type=encoding).T
 
-        if verbose:
-            for name, y in (("Train", y_train), ("Test ", y_test)):
-                counts = {int(v): int(np.sum(y == v)) for v in values}
-                print(f"{name}: {len(y):5d} samples, class counts {counts}")
-        return E_train, y_train, E_test, y_test
+    if verbose:
+        for name, y in (("Train", y_train), ("Test ", y_test)):
+            counts = {int(v): int(np.sum(y == v)) for v in values}
+            print(f"{name}: {len(y):5d} samples, class counts {counts}")
+    return E_train, y_train, E_test, y_test
