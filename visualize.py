@@ -5,7 +5,6 @@ import numpy as np
 # -----------------------Plotting Intensity in Mesh---------------------------------------------------
 #####################################################################################################
 
-
 def plot_intensity_map(
     intensities,
     detectors=None,
@@ -211,11 +210,9 @@ def plot_intensity_map_with_histogram(
 
     return fig, (ax, hax)
 
-
 #####################################################################################################
 # -----------------------Plotting Mesh Architecture---------------------------------------------------
 #####################################################################################################
-
 
 def plot_mesh(
     mesh,
@@ -492,7 +489,7 @@ def animate_training(
 
     import imageio.v2 as imageio
     from processing import forward_history
-    from tqdm.auto import tqdm  # <--- TQDM IMPORT HINZUGEFÜGT
+    from tqdm.auto import tqdm
     from Trainer import _copy
 
     cfg = trainer.cfg
@@ -519,7 +516,7 @@ def animate_training(
     best_params = (_copy(trainer.thetas), _copy(trainer.phis))
     t0 = time.perf_counter()
 
-    # --- 1. LADEBALKEN: TRAINING ---
+    # --- Training ---
     pbar_train = tqdm(range(cfg.max_epochs), desc="Training Epochs")
     for epoch in pbar_train:
         idx = trainer.rng.permutation(n_train)
@@ -550,7 +547,7 @@ def animate_training(
                 pbar_train.write(f"Early stopping at epoch {epoch}.")
                 break
 
-        # Status am Balken updaten
+        # Update status
         pbar_train.set_postfix(
             loss=f"{current_loss:.4f}", wait=f"{wait}/{cfg.patience}"
         )
@@ -572,7 +569,7 @@ def animate_training(
     vmax = max(f.max() for f in frames)
     files = []
 
-    # --- 2. LADEBALKEN: RENDERING DER BILDER ---
+    # --- Rendering ---
     for i, (I, ep) in enumerate(
         tqdm(zip(frames, epochs_at), total=len(frames), desc="Rendering Frames")
     ):
@@ -599,7 +596,7 @@ def animate_training(
     h = max(i.shape[0] for i in imgs)
     w = max(i.shape[1] for i in imgs)
 
-    # --- 3. LADEBALKEN: PADDING DER BILDER ---
+    # --- Padding of images---
     imgs = [
         np.pad(
             i, ((0, h - i.shape[0]), (0, w - i.shape[1]), (0, 0)), constant_values=255
@@ -607,10 +604,66 @@ def animate_training(
         for i in tqdm(imgs, desc="Padding Images")
     ]
 
-    # HIER IST DEIN FORMAT-FIX DIREKT MIT DRIN:
     imageio.mimsave(path, imgs, fps=fps, format="FFMPEG")
     print(f"video written: {path}")
 
     if not keep_frames:
         shutil.rmtree(frame_dir)
     return trainer, path
+
+
+#####################################################################################################
+# -----------------------Plot Data -----------------------------------------------------------
+#####################################################################################################
+
+def plot_spirals(data, labels=None, ax=None, title=None, marker="o", s=20,
+                 alpha=0.8, label_prefix="Spiral", show_legend=True):
+    """Scatter plot of a spiral dataset, for checking/debugging the data.
+
+    data   : (n, 3) array [label, x, y]  -- output of generate_multiple_spirals
+             or (n, 2) array [x, y]       -- e.g. u_train / u_test
+    labels : only used for (n, 2) data. Integer labels (n,) or one-hot (n, k),
+             e.g. y_train / y_test. None -> all points in one colour.
+    ax     : existing axes to draw into, e.g. to overlay train and test.
+             None -> a new figure is created.
+    marker : marker style, useful to distinguish train ("o") and test ("x").
+
+    Returns (fig, ax).
+    """
+    data = np.asarray(data)
+    if data.ndim != 2 or data.shape[1] not in (2, 3):
+        raise ValueError(f"expected (n, 2) or (n, 3) array, got {data.shape}")
+
+    # ---------- separate coordinates and labels ----------
+    if data.shape[1] == 3:
+        xy, lab = data[:, 1:3], data[:, 0].astype(int)
+    else:
+        xy = data
+        if labels is None:
+            lab = np.zeros(len(xy), dtype=int)       # single spiral / unlabelled
+        else:
+            labels = np.asarray(labels)
+            lab = labels.argmax(axis=1) if labels.ndim == 2 else labels.astype(int)
+        if len(lab) != len(xy):
+            raise ValueError(f"{len(lab)} labels but {len(xy)} points")
+
+    # ---------- plot ----------
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 7))
+    else:
+        fig = ax.figure
+
+    classes = np.unique(lab)
+    cmap = plt.get_cmap("tab10")
+    for c in classes:
+        m = lab == c
+        ax.scatter(xy[m, 0], xy[m, 1], s=s, alpha=alpha, marker=marker,
+                   color=cmap(int(c) % 10), label=f"{label_prefix} {int(c) + 1}")
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal")
+    ax.set_title(title or f"{len(classes)} spiral(s), {len(xy)} points")
+    if show_legend:
+        ax.legend(fontsize=9, loc="center left", bbox_to_anchor=(1.02, 0.5))
+    return fig, ax
