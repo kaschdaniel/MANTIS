@@ -1,0 +1,130 @@
+\documentclass[border=6pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb}
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes.geometric, arrows.meta, fit,
+                backgrounds, calc}
+
+% --------------------------------------------------- Farben
+\definecolor{physfill}{HTML}{DCE9F5}   % optische / physikalische Schritte
+\definecolor{physline}{HTML}{2C5F8A}
+\definecolor{ctrlfill}{HTML}{EFEFEF}   % Ablaufsteuerung
+\definecolor{ctrlline}{HTML}{707070}
+\definecolor{decfill} {HTML}{FBEBD2}   % Verzweigungen
+\definecolor{decline} {HTML}{B07B23}
+\definecolor{loopcol} {HTML}{8C8C8C}   % Rueckwaerts-Kanten
+
+\begin{document}
+\begin{tikzpicture}[
+    scale=1.15, transform shape, % <--- HIER: Alles um 15% vergrößert!
+    font=\small,
+    node distance = 8mm,
+    base/.style = {rectangle, rounded corners=2pt, draw, thick,
+                   minimum height=11mm, text width=54mm, align=center,
+                   inner sep=2.5mm},
+    phys/.style = {base, fill=physfill, draw=physline},
+    ctrl/.style = {base, fill=ctrlfill, draw=ctrlline, text width=48mm},
+    term/.style = {base, rounded corners=5pt, fill=ctrlfill, draw=ctrlline,
+                   text width=48mm},
+    dec/.style  = {diamond, aspect=2.2, draw, thick, fill=decfill,
+                   draw=decline, align=center, inner sep=0.5mm,
+                   text width=30mm},
+    flow/.style = {-{Stealth[length=2.6mm]}, thick},
+    loop/.style = {-{Stealth[length=2.6mm]}, thick, draw=loopcol, dashed},
+    lbl/.style  = {font=\scriptsize\itshape, inner sep=1.5pt}
+  ]
+
+% =========================================================================
+%  Linke Spalte -- ein Gradientenschritt (physikalischer Kern)
+% =========================================================================
+\node[phys] (fwd) {\textbf{Forward pass}\\[1mm]
+   $\mathbf{E}_{j}=\hat{M}_{j}\,\mathbf{E}_{j-1}$,\quad $j=1\dots2L$\\[0.6mm]
+   store $A_p$ behind every phase shifter};
+
+\node[phys, below=of fwd] (det) {\textbf{Detection}\\[1mm]
+   $s_c=\bigl|E_{\mathrm{out},d_c}\bigr|^{2}$\\[0.6mm]
+   the only nonlinearity of the system};
+
+\node[phys, below=of det] (loss) {\textbf{Loss}\\[1mm]
+   $\mathcal{L}(s_1,s_7)$};
+
+\node[phys, below=of loss] (gam) {\textbf{Error field}\\[1mm]
+   $\Gamma_n=\dfrac{\partial\mathcal{L}}{\partial s_c}\,E_{\mathrm{out},n}$
+   for $n=d_c$,\; else $0$};
+
+\node[phys, below=of gam] (bwd) {\textbf{Backward pass}\\[1mm]
+   inject $\boldsymbol{\Gamma}^{*}$ at $d_1,d_7$; propagate with
+   $\hat{M}_{j}^{\top}$ (reciprocity)\\[0.6mm]
+   store $A_p^{\mathrm{adj}}$};
+
+\node[phys, below=of bwd] (grad) {\textbf{Gradient}\\[1mm]
+   $\dfrac{\partial\mathcal{L}}{\partial p}
+    =-2\,\operatorname{Im}\bigl\{A_p\,A_p^{\mathrm{adj}}\bigr\}$};
+
+\node[phys, below=of grad] (upd) {\textbf{Update}\\[1mm]
+   $p\leftarrow p-\eta\,\dfrac{\partial\mathcal{L}}{\partial p}$,\quad
+   $p\in\{\theta_{n\ell},\phi_{n\ell}\}$};
+
+\node[dec, below=11mm of upd] (dbatch) {minibatches\\ left?};
+
+\begin{scope}[on background layer]
+  \node[draw=physline, dashed, thick, rounded corners=3pt,
+        inner sep=5mm, fill=physline!4,
+        fit=(fwd)(upd)] (stepbox) {};
+\end{scope}
+\node[anchor=south, font=\scriptsize\bfseries, text=physline]
+      at (stepbox.north)
+      {adjoint gradient step \textnormal{(one minibatch)}};
+
+% =========================================================================
+%  Rechte Spalte -- Ablaufsteuerung
+% =========================================================================
+% Neues Alignment: 'shuf' ist jetzt exakt auf Höhe von 'fwd'
+\node[ctrl] (shuf) at ($(fwd.east)+(52mm,0)$)
+   {\textbf{New epoch}\\[1mm]
+    shuffle, split into minibatches of size $B$};
+
+% 'init' sitzt nun sauber über 'shuf'
+\node[term, above=of shuf] (init)
+   {\textbf{Initialisation}\\[1mm]
+    $\theta_{n\ell},\phi_{n\ell}\sim$ Haar / uniform};
+
+\node[ctrl] (eval) at ($(dbatch.east)+(52mm,0)$)
+   {\textbf{Epoch evaluation}\\[1mm]
+    $\bar{\mathcal{L}}$, accuracy from
+    $\hat{y}=\arg\max(s_1,s_7)$\\[0.6mm]
+    keep $(\theta,\phi)$ if
+    $\bar{\mathcal{L}}$ improved by ${>}\,\delta_{\min}$};
+
+\node[dec, below=11mm of eval] (dstop)
+   {patience or\\ $n_{\max}$ reached?};
+
+\node[term, below=11mm of dstop] (fin)
+   {\textbf{Return best parameters}\\[1mm]
+    $(\theta,\phi)_{\mathrm{best}}$};
+
+% =========================================================================
+%  Kanten
+% =========================================================================
+\draw[flow] (fwd)  -- (det);
+\draw[flow] (det)  -- (loss);
+\draw[flow] (loss) -- (gam);
+\draw[flow] (gam)  -- (bwd);
+\draw[flow] (bwd)  -- (grad);
+\draw[flow] (grad) -- (upd);
+\draw[flow] (upd)  -- (dbatch);
+
+\draw[flow] (init) -- (shuf);
+% Der Pfeil nach links ist jetzt perfekt waagerecht!
+\draw[flow] (shuf.west) -- (fwd.east);           
+
+\draw[loop] (dbatch.west) -- ++(-18mm,0)
+      node[lbl, above, pos=0.55] {yes} |- (fwd.west);   % Batch-Schleife links
+\draw[flow] (dbatch.east) -- node[lbl, above, pos=0.3] {no} (eval.west);
+\draw[flow] (eval) -- (dstop);
+\draw[loop] (dstop.east) -- ++(24mm,0)
+      node[lbl, above, pos=0.6] {no} |- (shuf.east);    % Epochen-Schleife
+\draw[flow] (dstop) -- node[lbl, right, pos=0.45] {yes} (fin);
+
+\end{tikzpicture}
+\end{document}

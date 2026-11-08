@@ -1,0 +1,82 @@
+% ===========================================================================
+%  Titelseite
+%
+%  Einbinden:  \input{titlepage}   direkt nach \begin{document}
+%
+%  Benoetigte Pakete in der Praeambel:
+%     \usepackage{graphicx}
+%     \usepackage{xcolor}
+%     \usepackage{hyperref}
+%     \usepackage{microtype}   % optional, nur fuer die Sperrung von MANTIS
+%
+%  Alles Anpassbare steht in diesem Block:
+% ---------------------------------------------------------------------------
+\definecolor{mantis}{HTML}{1B7A5A}      % Titelfarbe -- hier aendern
+\definecolor{subtle}{HTML}{5A5A5A}      % Grauton fuer Nebentext
+
+\newcommand{\ProjectKicker}{Optical Machine Learning Project: MOCS-3D}
+\newcommand{\ProjectTitle}{MANTIS}
+\newcommand{\ProjectImage}{Chapters/MZI}   % ohne Dateiendung
+\newcommand{\AuthorOne}{Tim Gühring}
+\newcommand{\AuthorTwo}{Leah Haase}
+\newcommand{\RepoURL}{https://github.com/kaschdaniel/MANTIS.git}
+% ---------------------------------------------------------------------------
+
+\begin{titlepage}
+\centering
+\thispagestyle{empty}
+
+\vspace*{\stretch{1.1}}
+
+% ---------- Kicker -------------------------------------------------------
+{\normalsize\scshape\color{subtle}\ProjectKicker\par}
+
+\vspace{5mm}
+
+% ---------- Titel zwischen zwei Linien -----------------------------------
+{\color{mantis}\rule{0.62\textwidth}{0.9pt}}\par
+\vspace{3.5mm}
+{\fontsize{54}{54}\selectfont\bfseries\color{mantis}%
+ \ifdefined\textls\textls[180]{\ProjectTitle}\else\ProjectTitle\fi\par}
+\vspace{7mm}
+{\color{mantis}\rule{0.62\textwidth}{0.9pt}}\par
+
+\vspace{16mm}
+
+% ---------- Bild ---------------------------------------------------------
+% Faellt auf einen Platzhalter zurueck, solange die Datei fehlt.
+\IfFileExists{\ProjectImage.pdf}{%
+  \includegraphics[width=0.46\textwidth]{\ProjectImage}%
+}{\IfFileExists{\ProjectImage.png}{%
+  \includegraphics[width=0.46\textwidth]{\ProjectImage}%
+}{%
+  \fbox{\parbox[c][0.30\textwidth][c]{0.46\textwidth}{%
+    \centering\color{subtle}\itshape\small
+    \ProjectImage.png\\[1mm]-- Platzhalter --}}%
+}}
+
+\vspace{17mm}
+
+% ---------- Metadaten ----------------------------------------------------
+{\Large\scshape Project Report\par}
+\vspace{5mm}
+{\large\AuthorOne\quad\textcolor{mantis}{\textbullet}\quad\AuthorTwo\par}
+\vspace{3mm}
+{\large\today\par}
+\vspace{3mm}
+{\large Friedrich Schiller University Jena\par}
+
+\vspace*{\stretch{1.6}}
+
+% ---------- Fuss: Repository ---------------------------------------------
+{\color{subtle}\rule{0.28\textwidth}{0.4pt}\par}
+\vspace{3.5mm}
+{\small\color{subtle}Source code and data available on\par}
+\vspace{1.5mm}
+{\normalsize\href{\RepoURL}{%
+   \color{mantis}%
+   \ifdefined\faGithub\faGithub\hspace{1.2mm}\fi%
+   \textbf{GitHub}}\par}
+
+\vspace*{\stretch{0.3}}
+\end{titlepage}

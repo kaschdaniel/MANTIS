@@ -1,0 +1,15 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{forward}\PYG{p}{(}\PYG{n}{E\PYGZus{}in}\PYG{p}{,} \PYG{n}{layers}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Forward propagation through given layers.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{k}{for} \PYG{n}{Ml} \PYG{o+ow}{in} \PYG{n}{layers}\PYG{p}{:}
+        \PYG{n}{E} \PYG{o}{=} \PYG{n}{Ml} \PYG{o}{@} \PYG{n}{E}
+    \PYG{k}{return} \PYG{n}{E}
+
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{backward}\PYG{p}{(}\PYG{n}{lam\PYGZus{}out}\PYG{p}{,} \PYG{n}{layers}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Backward propagation through reversed layers.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{k}{return} \PYG{n}{forward}\PYG{p}{(}\PYG{n}{lam\PYGZus{}out}\PYG{p}{,} \PYG{n}{adjoint\PYGZus{}layers}\PYG{p}{(}\PYG{n}{layers}\PYG{p}{))}
+
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{adjoint\PYGZus{}layers}\PYG{p}{(}\PYG{n}{layers}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Transposing layers and reversal of their order.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{k}{return} \PYG{p}{[}\PYG{n}{Ml}\PYG{o}{.}\PYG{n}{T} \PYG{k}{for} \PYG{n}{Ml} \PYG{o+ow}{in} \PYG{n+nb}{reversed}\PYG{p}{(}\PYG{n}{layers}\PYG{p}{)]}
+\end{MintedVerbatim}

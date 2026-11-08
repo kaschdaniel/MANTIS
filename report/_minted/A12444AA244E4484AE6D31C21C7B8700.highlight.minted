@@ -1,0 +1,7 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{n}{F} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{vstack}\PYG{p}{([}\PYG{n}{np}\PYG{o}{.}\PYG{n}{ones}\PYG{p}{(}\PYG{n+nb}{len}\PYG{p}{(}\PYG{n}{X\PYGZus{}train}\PYG{o}{.}\PYG{n}{T}\PYG{p}{)),} \PYG{n}{X\PYGZus{}train}\PYG{p}{])}\PYG{o}{.}\PYG{n}{T}
+\PYG{n}{theta} \PYG{o}{=} \PYG{n}{np}\PYG{o}{.}\PYG{n}{linalg}\PYG{o}{.}\PYG{n}{pinv}\PYG{p}{(}\PYG{n}{F}\PYG{p}{)} \PYG{o}{@} \PYG{n}{y\PYGZus{}train}
+
+\PYG{n}{y\PYGZus{}pred} \PYG{o}{=} \PYG{n}{theta}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{+} \PYG{n}{np}\PYG{o}{.}\PYG{n}{sum}\PYG{p}{(}\PYG{n}{theta}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:]} \PYG{o}{*} \PYG{n}{X\PYGZus{}test}\PYG{o}{.}\PYG{n}{T}\PYG{p}{,} \PYG{n}{axis} \PYG{o}{=} \PYG{l+m+mi}{1}\PYG{p}{)}
+\PYG{n}{y\PYGZus{}pred\PYGZus{}label} \PYG{o}{=} \PYG{p}{(}\PYG{n}{y\PYGZus{}pred} \PYG{o}{\PYGZgt{}=} \PYG{l+m+mf}{0.5}\PYG{p}{)}\PYG{o}{.}\PYG{n}{astype}\PYG{p}{(}\PYG{n}{np}\PYG{o}{.}\PYG{n}{float64}\PYG{p}{)}
+\end{MintedVerbatim}

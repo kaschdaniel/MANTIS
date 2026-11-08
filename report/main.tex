@@ -1,0 +1,116 @@
+\documentclass[11pt, a4paper]{article}
+
+% ===================== PACKAGES =====================
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+% \usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath}
+\usepackage{eurosym}
+\usepackage{minted} %for code environments
+\usepackage{float}
+\usepackage{physics} %for real and imag part
+\usepackage{amssymb} %for \mathbb
+\usepackage[most]{tcolorbox}
+\usepackage{wrapfig}
+\usepackage[toc,page]{appendix}
+%\setlength{\parindent}{0pt}
+
+
+% ===================== BIBLIOGRAPHY (biblatex + biber) =====================
+\usepackage[
+    backend=biber,
+    style=phys,           % Implementiert den APS/Physical Review Standard
+    maxbibnames=3,        % NEU: Wenn es MEHR als 3 Autoren sind, wird gekürzt...
+    minbibnames=1,        % NEU: ...und zwar auf den Erstautor (1) plus "et al."
+    articletitle=true,    % Titel der Paper anzeigen (gut für längere Arbeiten)
+    biblabel=brackets,    % [1] statt 1. im Verzeichnis
+    chaptertitle=false,
+    pageranges=false,     %
+    url=false,            % URLs global ausblenden
+    isbn=false,
+    doi=true,             % DOIs unbedingt anlassen!
+    eprint=true           % arXiv-Links erlauben
+]{biblatex}
+
+\AtEveryBibitem{%
+  % Prüfen, ob das Feld "eprint" (für arXiv) existiert
+  \iffieldundef{eprint}{%
+    % FALL 1: KEIN arXiv-Preprint
+    \ifentrytype{online}{%
+      % Ist eine normale Website -> Nichts löschen, urldate bleibt erhalten!
+    }{%
+      % Ist ein normales Paper/Buch -> Störfelder löschen
+      \clearfield{urldate}%
+      \clearfield{url}%
+      \clearfield{note}%
+      %\clearfield{month}%
+    }%
+  }{%
+    % FALL 2: ES IST EIN arXiv-PREPRINT (eprint ist vorhanden)
+    % -> Hier wollen wir das Abrufdatum ebenfalls löschen, 
+    % selbst wenn der Typ @online ist.
+    \clearfield{urldate}%
+    \clearfield{url}% (Meist überflüssig, da der eprint-Link generiert wird)
+    \clearfield{note}%
+    \clearfield{month}%
+    \clearfield{eprintclass}
+  }%
+}
+
+\addbibresource{references.bib}
+% ===================== GLOSSARY (glossaries) =====================
+\usepackage[acronym]{glossaries}
+\makeglossaries
+
+% ===================== COLORS (adjust to taste) =====================
+\definecolor{pulsarblue}{RGB}{20, 60, 110}
+\definecolor{pulsargray}{RGB}{75, 75, 75}
+\definecolor{codeblue}{RGB}{236, 246, 252}
+\definecolor{codeyellow}{RGB}{255, 249, 225}
+
+\newcommand{\code}[1]{\texttt{#1}} %für Programmcode
+
+% ===================== HEADER / FOOTER =====================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small MANTIS: MOCS-3D}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\title{MANTIS}
+\author{Tim Gühring, Leah Haase}
+\date{\today}
+
+\begin{document}
+\input{chapters/Title}
+\input{acronyms}
+%\maketitle
+%\input{chapters/ToDo}
+\newpage
+\tableofcontents
+\newpage
+\printglossary[type=\acronymtype]
+\newpage
+
+\input{chapters/1.Introduction}
+
+\input{chapters/2.SystemImplementation}
+
+\input{chapters/3.TrainingPerformanceEvaluation}
+
+\input{chapters/4.DiscussionAnalysis}
+
+\input{chapters/5.Conclusion}
+\newpage
+\printbibliography
+\newpage
+\input{chapters/6.Appendix}
+
+\end{document}

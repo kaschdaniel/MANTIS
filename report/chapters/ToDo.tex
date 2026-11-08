@@ -1,0 +1,23 @@
+\textbf{Konvention}
+\begin{enumerate}
+    \item m: Seitenlänge von downsampled MNIST image
+    \item N: Anzahl Channel -> $N=m^2$
+    \item theta\_enc: Hyperparameter für scaling von Codierung
+    \item thetas, phis: Weights unseres Systems
+    \item seed: 1550 Für Reproduzierbarkeit der Datensätze
+    
+\end{enumerate}
+
+\textbf{Evaluation}
+\begin{enumerate}
+    \item Position von Detektor-Outputs relevant für Konvergenz?
+    \item Input- und Detection-loss einführen (Fiber-loss simulieren)
+    \item Detektoren verbinden und obere Hälfte der 1 zuordnen, untere Hälfte der 7? Also mehr Intensität in oberer Hälfte -> 1, andernfalls 7 ?
+\end{enumerate}
+
+\textbf{Discussion}
+\begin{enumerate}
+    \item Stromverbrauch (Unterschied Plug-In Strom und used power)
+    \item Begrenzungen: Parameter müssen kontinuierlich sein, außerdem konvergiert gradient-approach nur zum nächsten lokalen Minimum, garantiert nicht globales Minimum \cite{gilesIntroductionAdjointApproach2000}.
+    Und Loss-funktion muss für error field diffbar sein
+\end{enumerate}

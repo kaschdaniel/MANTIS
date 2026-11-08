@@ -1,0 +1,11 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{plan\PYGZus{}rectangular}\PYG{p}{(}\PYG{n}{N}\PYG{p}{,} \PYG{n}{L}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Clements / rectangular mesh: L Layers, with alternating offset 0 and 1.}
+\PYG{l+s+sd}{    Universal for L = N. Returns: list of (\PYGZdq{}mzi\PYGZdq{}, ks).\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{plan} \PYG{o}{=} \PYG{p}{[]}
+    \PYG{k}{for} \PYG{n}{l} \PYG{o+ow}{in} \PYG{n+nb}{range}\PYG{p}{(}\PYG{n}{L}\PYG{p}{):}
+        \PYG{n}{start} \PYG{o}{=} \PYG{n}{l} \PYG{o}{\PYGZpc{}} \PYG{l+m+mi}{2}
+        \PYG{n}{ks} \PYG{o}{=} \PYG{n+nb}{list}\PYG{p}{(}\PYG{n+nb}{range}\PYG{p}{(}\PYG{n}{start}\PYG{p}{,} \PYG{n}{N} \PYG{o}{\PYGZhy{}} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{2}\PYG{p}{))}
+        \PYG{n}{plan}\PYG{o}{.}\PYG{n}{append}\PYG{p}{((}\PYG{l+s+s2}{\PYGZdq{}mzi\PYGZdq{}}\PYG{p}{,} \PYG{n}{ks}\PYG{p}{))}
+    \PYG{k}{return} \PYG{n}{plan}
+\end{MintedVerbatim}

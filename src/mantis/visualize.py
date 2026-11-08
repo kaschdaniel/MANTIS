@@ -1,0 +1,669 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+#####################################################################################################
+# -----------------------Plotting Intensity in Mesh---------------------------------------------------
+#####################################################################################################
+
+def plot_intensity_map(
+    intensities,
+    detectors=None,
+    ax=None,
+    title=None,
+    cmap="inferno",
+    log=False,
+    label_fontsize=16,
+    tick_fontsize=14,
+):
+    """Field intesities |E|^2 as heatmap (channel over layer)."""
+    I = np.asarray(intensities, dtype=float)
+    if I.ndim != 2:
+        raise ValueError(
+            f"expects (L+1, N), got {I.shape} "
+            "choose sample of batch first: hist[:, :, b]"
+        )
+    L1, N = I.shape
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(max(6, 0.09 * L1 + 4), max(3, 0.05 * N + 3)))
+    else:
+        fig = ax.figure
+
+    data = np.log10(np.maximum(I.T, 1e-12)) if log else I.T
+    im = ax.imshow(
+        data,
+        aspect="auto",
+        cmap=cmap,
+        interpolation="nearest",
+        extent=[-0.5, L1 - 0.5, N - 0.5, -0.5],
+    )
+
+    for d in detectors or []:
+        ax.plot(
+            L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5
+        )
+
+        ax.text(
+            L1 + 0.5,
+            d,
+            f"det {d}",
+            va="center",
+            rotation="vertical",
+            fontsize=label_fontsize,
+            color="forestgreen",
+            clip_on=False,
+        )
+
+    # labelling axes
+    ax.set_xlabel("layer", fontsize=label_fontsize)
+    ax.set_ylabel(r"channel $k$", fontsize=label_fontsize)
+    ax.set_title(title or r"field intensity $|E|^2$", fontsize=label_fontsize + 1)
+
+    # ticks
+    ax.tick_params(axis="both", which="major", labelsize=tick_fontsize)
+
+    # colorbar and ticks
+    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
+    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=label_fontsize)
+    cb.ax.tick_params(labelsize=tick_fontsize)
+
+    fig.tight_layout()
+    return fig, ax
+
+
+def plot_intensity_map_with_histogram(
+    I,
+    det1,
+    det7,
+    Y,
+    cmap="inferno",
+    log=False,
+    class_colors=("tab:cyan", "tab:orange"),
+    title=None,
+):
+    """Intensity heatmap plus a rotated histogram of the output intensities.
+
+    I    : (L+1, N) for one sample or (L+1, N, B) for a batch.
+           Row s = field intensity after s layers (s=0 is the input).
+    det1, det7 : channel indices of the detectors for class 1 and class 7.
+    Y    : label(s); scalar for one sample, array (B,) for a batch.
+
+    Left panel:  mean intensity over all samples, as a channel-over-layer map.
+    Right panel: per-class output intensity per channel (bars), with the two
+                 detector bars outlined. For a single class the outline is
+                 green at the wanted detector and red at the other; with both
+                 classes present no detector is preferred, so both are orange.
+    """
+    # ---------- normalize shapes to (L+1, N, B) ----------
+    I = np.atleast_3d(np.asarray(I, dtype=float))
+    Y = np.atleast_1d(np.asarray(Y))
+    L1, N, B = I.shape
+    if len(Y) != B:
+        raise ValueError(f"{len(Y)} labels but {B} samples in I")
+
+    # ---------- reduce data ----------
+    heat = I.mean(axis=2)  # (L+1, N) map
+    I_out = I[-1]  # (N, B) output field
+    classes = np.sort(np.unique(Y))  # smaller label first
+    class_color = dict(zip(classes, class_colors))
+    bars = {
+        c: (lambda p: p / p.sum() if p.sum() > 0 else p)(
+            I_out[:, Y == c].mean(axis=1)
+        )  # mean profile, normalized
+        for c in classes
+    }
+
+    # ---------- figure: colorbar | heatmap | histogram ----------
+    fig, (cax, ax, hax) = plt.subplots(
+        1,
+        3,
+        figsize=(max(9, 0.09 * L1 + 6), max(3.5, 0.05 * N + 3)),
+        gridspec_kw={"width_ratios": [0.035, 1.0, 0.42], "wspace": 0.15},
+    )
+
+    # ---------- heatmap ----------
+    data = np.log10(np.maximum(heat.T, 1e-12)) if log else heat.T
+    im = ax.imshow(
+        data,
+        aspect="auto",
+        cmap=cmap,
+        interpolation="nearest",
+        extent=[-0.5, L1 - 0.5, N - 0.5, -0.5],
+    )
+    ax.set_xlabel("layer  (0 = input field)")
+    ax.set_ylabel(r"channel $k$")
+    ax.set_title(
+        title
+        or (
+            r"Field intensity $|E|^2$"
+            if B == 1
+            else r"Mean field intensity $\overline{|E|^2}$"
+        )
+    )
+    cb = fig.colorbar(im, cax=cax)
+    cb.set_label(r"$\log_{10}|E|^2$" if log else r"$|E|^2$", fontsize=9)
+    cax.yaxis.set_ticks_position("left")
+    cax.yaxis.set_label_position("left")
+
+    # detector markers along the heatmap's output edge
+    for d, lab in zip((det1, det7), ("1", "7")):
+        ax.plot(
+            L1 - 0.5, d, marker="<", ms=10, color="forestgreen", clip_on=False, zorder=5
+        )
+        ax.text(
+            L1 + 0.75,
+            d,
+            f"det {lab}",
+            va="center",
+            rotation="vertical",
+            fontsize=8,
+            color="forestgreen",
+            clip_on=False,
+        )
+
+    # ---------- histogram bars (barh = rotated 90 deg) ----------
+    for c, col in zip(classes, class_colors):
+        hax.barh(
+            np.arange(N),
+            bars[c],
+            height=0.85,
+            color=col,
+            alpha=0.3,
+            label=f"class {c}",
+            zorder=2,
+        )
+
+    # ---------- detector outlines ----------
+    # colour encodes the expectation: green = should get the energy,
+    # red = should stay low, orange = both classes present (no preference)
+    both = len(classes) > 1
+    want_det = {1: det1, 7: det7}  # each class' own detector
+    for d in (det1, det7):
+        # tallest first, so the shorter bar's outline ends up on top
+        for z, c in enumerate(sorted(classes, key=lambda c: bars[c][d], reverse=True)):
+            edge = (
+                class_color[c]
+                if both
+                else ("forestgreen" if d == want_det[c] else "crimson")
+            )
+            hax.barh(
+                d,
+                bars[c][d],
+                height=0.85,
+                facecolor="none",
+                edgecolor=edge,
+                linewidth=1.8,
+                zorder=4 + z,
+            )
+
+    # ---------- histogram cosmetics ----------
+    # same channel axis as heatmap
+    hax.set_ylim(N - 0.5, -0.5)
+    hax.set_xlim(0, 1.05 * max(b.max() for b in bars.values()))
+    hax.set_yticks([])
+    hax.set_xlabel(r"norm. $|E|^2$")
+    hax.axhline(det1, color="0.6", lw=0.6, ls=":", zorder=1)
+    hax.axhline(det7, color="0.6", lw=0.6, ls=":", zorder=1)
+    for s in ("top", "right"):
+        hax.spines[s].set_visible(False)
+    hax.legend(fontsize=7, loc="lower right", framealpha=0.9)
+
+    return fig, (ax, hax)
+
+#####################################################################################################
+# -----------------------Plotting Mesh Architecture---------------------------------------------------
+#####################################################################################################
+
+def plot_mesh(
+    mesh,
+    ax=None,
+    color_by=None,
+    detectors=None,
+    label_step=None,
+    figsize=None,
+    title=None,
+):
+    """Draws the structure of a MZI Mesh."""
+    N = mesh.N
+    plan = mesh.plan
+    L = len(plan)
+
+    if ax is None:
+        if figsize is None:
+            figsize = (max(6.0, 0.32 * L), max(3.0, 0.16 * N))
+        fig, ax = plt.subplots(figsize=figsize)
+
+    # 1) Waveguides as backgorund lines
+    for i in range(N):
+        ax.plot([-0.6, L - 0.4], [i, i], color="0.88", lw=0.8, zorder=0)
+
+    # 2) Colormap
+    cmap = plt.get_cmap("viridis")
+    if color_by == "alpha":
+        alphas = mesh.sensitivity_index()
+        vmax = max((a.max() for a in alphas if len(a) > 0), default=1)
+        vmin = min((a.min() for a in alphas if len(a) > 0), default=0)
+    else:
+        alphas = None
+
+    # Go through layers
+    for l, (kind, data) in enumerate(plan):
+        if kind == "perm":
+            # perm is defined such that (P @ E)[j] = E[perm[j]].
+            # Channel i is at position inv[i] thus.
+            inv = np.argsort(data)
+            for i in range(N):
+                j = inv[i]
+                moved = i != j
+                ax.plot(
+                    [l - 0.42, l + 0.42],
+                    [i, j],
+                    color="tab:orange" if moved else "0.88",
+                    lw=1.0 if moved else 0.8,
+                    zorder=2 if moved else 0,
+                )
+            continue
+
+        for i_slot, k in enumerate(data):
+            if color_by == "alpha":
+                c = cmap((alphas[l][i_slot] - vmin) / max(vmax - vmin, 1))
+            elif color_by == "layer":
+                c = cmap(l / max(L - 1, 1))
+            else:
+                c = "tab:red"
+
+            # Connector between k and k+1 ...
+            ax.plot([l, l], [k, k + 1], color=c, lw=1.4, zorder=2)
+            # ... and points in the middle as MZI
+            ax.plot([l], [k + 0.5], marker="o", ms=4.5, color=c, zorder=3)
+
+    # Mark detectors
+    if detectors is not None:
+        for d in detectors:
+            ax.plot(
+                [L - 0.4],
+                [d],
+                marker="s",
+                ms=7,
+                color="tab:blue",
+                zorder=4,
+                clip_on=False,
+            )
+            ax.annotate(
+                f"det {d}",
+                (L - 0.25, d),
+                va="center",
+                fontsize=8,
+                color="tab:blue",
+                annotation_clip=False,
+            )
+
+    # Axis
+    if label_step is None:
+        label_step = 1 if N <= 20 else max(1, N // 10)
+    ticks = list(range(0, N, label_step))
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(ticks, fontsize=8)
+    ax.set_ylabel("Channel")
+
+    x_step = 1 if L <= 20 else max(1, L // 12)
+    ax.set_xticks(list(range(0, L, x_step)))
+    ax.tick_params(axis="x", labelsize=8)
+    ax.set_xlabel("Layer")
+
+    ax.set_xlim(-0.9, L - 0.1)
+    ax.set_ylim(N - 0.5, -0.5)
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+
+    n_mzi = sum(len(d) for kind, d in plan if kind == "mzi")
+    ax.set_title(
+        title if title is not None else f"N={N}, {L} Layer, {n_mzi} MZIs", fontsize=10
+    )
+    return ax
+
+
+def plot_layers(layers, mode: str = "Abs"):
+    """Plots the layers as transfer-matrices
+    mode: Either "Abs" or "Complex" for np.abs(layers) or np.imag(layers) and np.real(layers)
+    """
+    L = len(layers)
+
+    if mode == "Complex":
+        # real part up, imaginary part below
+        fig, axes = plt.subplots(2, L, figsize=(2.2 * L, 4.6))
+        for l, M in enumerate(layers):
+            im = axes[0, l].matshow(np.real(M), vmin=-1, vmax=1, cmap="RdBu_r")
+            axes[1, l].matshow(np.imag(M), vmin=-1, vmax=1, cmap="RdBu_r")
+            axes[0, l].set_title(f"L{l}", fontsize=9)
+            for row in (0, 1):
+                axes[row, l].set_xticks([])
+                axes[row, l].set_yticks([])
+        axes[0, 0].set_ylabel("Re", fontsize=10)
+        axes[1, 0].set_ylabel("Im", fontsize=10)
+        fig.colorbar(im, ax=axes, shrink=0.6)
+        return fig, axes
+
+    # Standard
+    fig, axes = plt.subplots(1, L, figsize=(2.2 * L, 2.4))
+    for l, (ax, M) in enumerate(zip(axes, layers)):
+        im = ax.matshow(np.abs(M), vmin=0, vmax=1)
+        ax.set_title(f"L{l}", fontsize=9)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    fig.colorbar(im, ax=axes, shrink=0.7)
+    return fig, axes
+
+
+#####################################################################################################
+# -----------------------Evaluating Training Results--------------------------------------------------
+#####################################################################################################
+
+
+def plot_training(
+    trainers,
+    sweep_values=None,
+    sweep_label="m",
+    keys=("loss", "acc", "grad_norm"),
+    x_axis="epoch",
+):
+    """Learning curves of one Trainer or of several runs of a sweep.
+
+    trainers     : a single Trainer, or a list of Trainers. Only .history is
+                   read; for x_axis="time" the .train_time attribute is used too.
+    sweep_values : values of the swept parameter, same length as trainers.
+                   None -> runs are numbered instead.
+    sweep_label  : name of the swept parameter, used in the legend.
+    keys         : which history entries to plot, one panel each.
+    x_axis       : "epoch" -> x is the epoch index (batch_loss: gradient step)
+                   "time"  -> x is wall-clock seconds, using train_time spread
+                              evenly over the recorded points. Lets runs with
+                              different per-step cost be compared on equal footing.
+
+    Returns (fig, axes).
+    """
+    if not isinstance(trainers, (list, tuple, np.ndarray)):
+        trainers = [trainers]  # single run
+    hists = [t.history if hasattr(t, "history") else t for t in trainers]
+    # train_time only needed (and only available) for the time axis
+    times = (
+        [getattr(t, "train_time", None) for t in trainers]
+        if x_axis == "time"
+        else [None] * len(hists)
+    )
+
+    if sweep_values is None:
+        labels = [f"run {i}" for i in range(len(hists))]
+    else:
+        if len(sweep_values) != len(hists):
+            raise ValueError(
+                f"{len(sweep_values)} sweep values but {len(hists)} trainers"
+            )
+        labels = [f"{sweep_label} = {v}" for v in sweep_values]
+
+    log_scale = {"loss", "grad_norm", "batch_loss"}
+    axis_label = {
+        "loss": "training loss",
+        "acc": "accuracy",
+        "grad_norm": r"$\|\nabla\|_2$",
+        "batch_loss": "batch loss",
+    }
+
+    def x_for(h, key, tt):
+        """x coordinates for one curve of one run."""
+        n = len(h[key])
+        if x_axis == "time":
+            if tt is None:
+                raise ValueError(
+                    "x_axis='time' needs trainers with .train_time, "
+                    "not raw history dicts"
+                )
+            # spread total time evenly over the points of this curve
+            return np.linspace(tt / n, tt, n)
+        # epoch axis: batch_loss is per gradient step, rescaled to epochs
+        if key == "batch_loss":
+            spe = h["epoch_end_step"][0] if h.get("epoch_end_step") else 1
+            return (np.arange(n) + 1) / spe
+        return np.arange(1, n + 1)  # epoch-level curves
+
+    fig, axes = plt.subplots(
+        1, len(keys), figsize=(4.3 * len(keys) + 1, 3.5), squeeze=False
+    )
+    axes = axes[0]
+    cmap = plt.get_cmap("viridis")
+    for i, (h, lab, tt) in enumerate(zip(hists, labels, times)):
+        col = cmap(i / max(len(hists) - 1, 1)) if len(hists) > 1 else "tab:blue"
+        for ax, key in zip(axes, keys):
+            lw = 0.9 if key == "batch_loss" else 1.5
+            ax.plot(
+                x_for(h, key, tt),
+                h[key],
+                color=col,
+                lw=lw,
+                label=lab,
+                marker="s",
+                markersize="3",
+            )
+
+    xlabel = "wall-clock time (s)" if x_axis == "time" else "epoch"
+    for ax, key in zip(axes, keys):
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(axis_label.get(key, key))
+        if key in log_scale:
+            ax.set_yscale("log")
+        # if key == "acc":
+        # ax.axhline(0.5, color="0.6", ls=":", zorder=0)
+        # ax.set_ylim(0.45, 1.02)
+    if len(hists) > 1:
+        # loc="center right" nimmt die rechte Kante der Legende als Anker
+        # bbox_to_anchor=(-0.15, 0.5) schiebt diesen Anker nach links außen und mittig in die Höhe
+        axes[0].legend(fontsize=8, loc="center right", bbox_to_anchor=(-0.4, 0.5))
+
+    fig.tight_layout()
+    return fig, axes
+
+
+#####################################################################################################
+# -----------------------Animate Training -----------------------------------------------------------
+#####################################################################################################
+
+
+def animate_training(
+    path,
+    digits,
+    trainer,
+    E_train,
+    y_train,
+    show_class=7,
+    with_histogram=False,
+    every=1,
+    fps=8,
+    n_show=None,
+    keep_frames=False,
+    log=False,
+):
+    """Train a mesh and save the evolution of the field intensities as a video."""
+    import pathlib
+    import shutil
+    import time
+
+    import imageio.v2 as imageio
+    from processing import forward_history
+    from tqdm.auto import tqdm
+    from Trainer import _copy
+
+    cfg = trainer.cfg
+    d1, d7 = cfg.detectors
+    path = pathlib.Path(path)
+
+    # samples propagated for the frames -- one class, always the same ones
+    E_show = E_train[:, y_train == show_class]
+    if n_show is not None:
+        E_show = E_show[:, :n_show]
+    y_show = np.full(E_show.shape[1], show_class)
+    print(f"animating class {show_class}: {E_show.shape[1]} samples per frame")
+
+    def snapshot():
+        """Intensities of the shown samples at the current weights."""
+        I = np.abs(forward_history(E_show, trainer._layers())) ** 2  # (L+1,N,B)
+        return I if with_histogram else I.mean(axis=2)  # histogram needs the batch
+
+    # ---------------- training loop with snapshots ----------------
+    n_train = E_train.shape[1]
+    batches_per_epoch = int(np.ceil(n_train / cfg.batch_size))
+    frames, epochs_at = [snapshot()], [0.0]  # frame 0 = untrained mesh
+    best_loss, wait, step = np.inf, 0, 0
+    best_params = (_copy(trainer.thetas), _copy(trainer.phis))
+    t0 = time.perf_counter()
+
+    # --- Training ---
+    pbar_train = tqdm(range(cfg.max_epochs), desc="Training Epochs")
+    for epoch in pbar_train:
+        idx = trainer.rng.permutation(n_train)
+        losses, norms = [], []
+        for s in range(0, len(idx), cfg.batch_size):
+            b = idx[s : s + cfg.batch_size]
+            loss, gn = trainer.step(E_train[:, b], y_train[b], digits)
+            losses.append(loss)
+            norms.append(gn)
+            trainer.history["batch_loss"].append(float(loss))
+            step += 1
+            if step % every == 0:
+                frames.append(snapshot())
+                epochs_at.append(step / batches_per_epoch)  # fractional epoch
+
+        current_loss = float(np.mean(losses))
+        trainer.history["loss"].append(current_loss)
+        trainer.history["acc"].append(trainer.evaluate(E_train, y_train, digits)[1])
+        trainer.history["grad_norm"].append(float(np.mean(norms)))
+        trainer.history["epoch_end_step"].append(step)
+
+        if trainer.history["loss"][-1] < best_loss - cfg.min_delta:
+            best_loss, wait = trainer.history["loss"][-1], 0
+            best_params = (_copy(trainer.thetas), _copy(trainer.phis))
+        else:
+            wait += 1
+            if wait >= cfg.patience:
+                pbar_train.write(f"Early stopping at epoch {epoch}.")
+                break
+
+        # Update status
+        pbar_train.set_postfix(
+            loss=f"{current_loss:.4f}", wait=f"{wait}/{cfg.patience}"
+        )
+
+    pbar_train.close()
+
+    trainer.thetas, trainer.phis = best_params
+    trainer.train_time = time.perf_counter() - t0
+    print(
+        f"{len(frames)} frames | {len(trainer.history['loss'])} epochs | "
+        f"train acc {trainer.history['acc'][-1]:.4f} | {trainer.train_time:.0f}s"
+    )
+
+    # ---------------- render frames with a COMMON colour scale ----------------
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame_dir = path.parent / f"{path.name.replace('.', '_')}_frames"
+    frame_dir.mkdir(exist_ok=True)
+
+    vmax = max(f.max() for f in frames)
+    files = []
+
+    # --- Rendering ---
+    for i, (I, ep) in enumerate(
+        tqdm(zip(frames, epochs_at), total=len(frames), desc="Rendering Frames")
+    ):
+        title = f"class {show_class}   |   epoch {ep:.2f}"
+        if with_histogram:
+            fig, (ax, hax) = plot_intensity_map_with_histogram(
+                I, d1, d7, y_show, log=log, title=title
+            )
+        else:
+            fig, ax = plot_intensity_map(
+                I, detectors=cfg.detectors, title=title, log=log
+            )
+        ax.images[0].set_clim(
+            np.log10(max(vmax, 1e-12)) - 6 if log else 0,
+            np.log10(max(vmax, 1e-12)) if log else vmax,
+        )
+        p = frame_dir / f"{i:05d}.png"
+        fig.savefig(p, dpi=110)
+        plt.close(fig)
+        files.append(p)
+
+    # ---------------- stitch to video ----------------
+    imgs = [imageio.imread(p) for p in files]
+    h = max(i.shape[0] for i in imgs)
+    w = max(i.shape[1] for i in imgs)
+
+    # --- Padding of images---
+    imgs = [
+        np.pad(
+            i, ((0, h - i.shape[0]), (0, w - i.shape[1]), (0, 0)), constant_values=255
+        )
+        for i in tqdm(imgs, desc="Padding Images")
+    ]
+
+    imageio.mimsave(path, imgs, fps=fps, format="FFMPEG")
+    print(f"video written: {path}")
+
+    if not keep_frames:
+        shutil.rmtree(frame_dir)
+    return trainer, path
+
+
+#####################################################################################################
+# -----------------------Plot Data -----------------------------------------------------------
+#####################################################################################################
+
+def plot_spirals(data, labels=None, ax=None, title=None, marker="o", s=20,
+                 alpha=0.8, label_prefix="Spiral", show_legend=True):
+    """Scatter plot of a spiral dataset, for checking/debugging the data.
+
+    data   : (n, 3) array [label, x, y]  -- output of generate_multiple_spirals
+             or (n, 2) array [x, y]       -- e.g. u_train / u_test
+    labels : only used for (n, 2) data. Integer labels (n,) or one-hot (n, k),
+             e.g. y_train / y_test. None -> all points in one colour.
+    ax     : existing axes to draw into, e.g. to overlay train and test.
+             None -> a new figure is created.
+    marker : marker style, useful to distinguish train ("o") and test ("x").
+
+    Returns (fig, ax).
+    """
+    data = np.asarray(data)
+    if data.ndim != 2 or data.shape[1] not in (2, 3):
+        raise ValueError(f"expected (n, 2) or (n, 3) array, got {data.shape}")
+
+    # ---------- separate coordinates and labels ----------
+    if data.shape[1] == 3:
+        xy, lab = data[:, 1:3], data[:, 0].astype(int)
+    else:
+        xy = data
+        if labels is None:
+            lab = np.zeros(len(xy), dtype=int)       # single spiral / unlabelled
+        else:
+            labels = np.asarray(labels)
+            lab = labels.argmax(axis=1) if labels.ndim == 2 else labels.astype(int)
+        if len(lab) != len(xy):
+            raise ValueError(f"{len(lab)} labels but {len(xy)} points")
+
+    # ---------- plot ----------
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 7))
+    else:
+        fig = ax.figure
+
+    classes = np.unique(lab)
+    cmap = plt.get_cmap("tab10")
+    for c in classes:
+        m = lab == c
+        ax.scatter(xy[m, 0], xy[m, 1], s=s, alpha=alpha, marker=marker,
+                   color=cmap(int(c) % 10), label=f"{label_prefix} {int(c) + 1}")
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal")
+    ax.set_title(title or f"{len(classes)} spiral(s), {len(xy)} points")
+    if show_legend:
+        ax.legend(fontsize=9, loc="center left", bbox_to_anchor=(1.02, 0.5))
+    return fig, ax

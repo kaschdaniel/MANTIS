@@ -1,0 +1,22 @@
+
+ Loss-Function: mse, mse\_norm und softmax? Sind differnzierbar -> benötigt für backprop. Argmax dient zur identifizierung, nicht für Training geeignet
+
+ Warum nicht die mean squared cost function?\cite{hughesTrainingPhotonicNeural2018}
+ $ L = 1/2 (X_L-T)^\dagger (X_L-T) $
+ Ist ja fast das gleiche wie die mse oder nicht
+ - Ich bin mir nicht sicher wie wir unser Target E-Feld definieren müssten (da bräuchten wir ja auch die Phase), deshalb hätte ich's mit Intensität gemacht (die im Paper machen das ja mit dem E-Feld, oder?)
+ Soweit ich das gesehen/verstanden habe, haben sie auch einfach Vektoren mit 1 und sonst 0 für T benutzt
+ - Aber das X-Feld ist dann die Intensität?
+ Sie bezeichnen es meist als modal amplitude, also hätte ich Feld gedacht
+ Aber es macht ja gar kein Sinn die Phase festzulegen, weil wir die ja gar nicht messen können. Und wenn wir das Feld festlegen tun wir das ja
+
+ Oder meinst du eine nichtlineare Funktion für zwischen den Ebenen?
+- Ne, die haben wir gar nicht. Das ist auch beschrieben in einem Paper... Das "Deep Learning with Coherent Nanophotonic Circuits Paper" \cite{shenDeepLearningCoherent2017} geht da etwas drauf ein, nur falls wir darauf uns nochmal beziehen wollen - Begriff der OUI vs ONU
+Hier haben sie das auch in ihrer Herleitung berücksichtigt gehabt: \cite{Hughes2018-optica}
+- Können wir die non-linear function einfach = id setzen?
+Außer für den aller letzten schritt, also f\_l = id außer für f\_100 -> Und dann die Messung als Intensität als f\_100 einbauen?
+Jap, das ist das einzige, was wir als non-linearity haben
+Ok, das hatte ich auch überlegt
+
+ Argumente für Normierung der Energie: Führt dazu, dass über Gesamthelligkeit anstatt räumliche Struktur klassifiziert wird, das ist dann anfällig für losses / laser-intensitätsschwankungen,...
+

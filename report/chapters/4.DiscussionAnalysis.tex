@@ -1,0 +1,36 @@
+\section{Discussion and critical analysis} %1-2 pages
+\subsection{Bias-variance trade-off analysis}
+To examine our optical system, a bias-variance trade-off analysis is performed considering the results of the training.
+The bias is related to underfitting and describes errors which are caused when a model is too simplistic, while the variance refers to overfitting and a too high complexity.
+
+The use of a \gls{mzi} mesh limits our model to unitary matrices. 
+Additionally, the only non-linearity present in our model is the detection as intensity. This could be changed by adding a non-linearity between layers (\gls{onu}).
+Thermal and detector noise, imperfections in the fabrication of the chip and losses at the beam splitters and fibers might lead to additional errors contributing to the variance.
+Furthermore, the number of layers limits the number of adjustable parameters. Therefore, a low number of layers will contribute to the bias, while a high number of layers contributes to the variance.
+A similar argument can be made for the side length of the images. When too few pixels are used, relevant information is lost, while for too many pixels, the model trains on ``noise''. Therefore, the best accuracy can be reached when a reasonable trade-off between these aspects is found, as demonstrated in the previous section on our best-performing model.
+
+\subsection{Implementation challenges}
+The main challenge of the computational as well as physical implementation of this model is the estimation of the gradient. %The solution is well-documented in the literature.
+To calculate the gradient, the time-reversal interference method is used \cite{hughesTrainingPhotonicNeural2018}.
+In the physical implementation, the non-measurability of the electric fields and the consequent need to use the measurable intensities for the computation lead to further complexity.
+
+In our computational implementation the high runtime can pose a challenge. The main contribution appears to be the gradient update.
+It would be possible to reduce the runtime by exchanging the element-wise loop-based update for a matrix-based solution.
+Furthermore, the function \code{layer\_matrices\_separate} which constructs the matrices might be optimized by taking advantage of the sparse block-based structure and exchanging the appending to a list to the storage in a numpy array.
+%- 153 ms für den Matrixbau sind unverhältnismäßig —  erzeugt 200 volle 100×100-Matrizen, obwohl jede nur 2×2-Blöcke auf der Diagonale trägt. Auch die Multiplikation M @ E rechnet dann O(N$^2$B) statt der eigentlich nötigen O(NB).
+%Das ließe sich um etwa den Faktor 50 beschleunigen, indem man die Blockstruktur ausnutzt statt volle Matrizen zu bauen.
+
+The chosen number of samples of 2000 seems to be rather low. It might make sense to repeat the tests with more samples to ensure that the dataset shows a realistic representation of the variance of the written digits.
+%Unbedingt auf "Stichprobenrauschen" eingehen, das bei dieser Datengröße schon viel ausmacht (weiß auch nicht wie genau ich da quantitativ werden würde)
+
+%Erkläre den Unterschied in der Modellklasse. Die lineare Baseline zeigt, wie viel schon linear geht; dein Mesh zeigt, dass ein energieerhaltendes optisches System dieselbe Aufgabe physikalisch realisierbar löst — was der eigentliche Punkt eines optischen Computers ist. (lineare regression hat viel mehr freiheiten bei der Matrix, wir haben zwar mehr Parameter aber die Matrix muss unitär sein (energieerhaltung), deshalb hat es unser System "schwerer"
+
+
+\subsection{Estimated energy consumption}
+The consumed energy of the physical model depends on the laser, the control of the encoding, the control of the phase shifters, the detectors and the computing for the encoding and decoding.
+Compared to the energy consumption of the laser and an assumed electro-optic control of the phase shifters, the other contributions are probably negligible.
+While the energy consumption of the electro-optic modulators should be constant over time, the energy consumption of the laser depends on the time that the laser is turned on, and therefore the time required for one processing of one sample times the number of processing steps within the training.
+After training of the model, for the testing only one forward propagation of the light is necessary.
+
+
+\newpage

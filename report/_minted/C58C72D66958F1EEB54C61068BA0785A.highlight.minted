@@ -1,0 +1,18 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{beamsplitter}\PYG{p}{(}\PYG{n}{eta}\PYG{o}{=}\PYG{l+m+mf}{1.0}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Transfer matrix of a beamsplitter with power transmission eta.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{B\PYGZus{}ideal} \PYG{o}{=} \PYG{p}{(}\PYG{l+m+mi}{1}\PYG{o}{/}\PYG{n}{np}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{l+m+mi}{2}\PYG{p}{))} \PYG{o}{*} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([[}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{n}{j}\PYG{p}{],}
+                                         \PYG{p}{[}\PYG{l+m+mi}{1}\PYG{n}{j}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]],} \PYG{n}{dtype}\PYG{o}{=}\PYG{n}{np}\PYG{o}{.}\PYG{n}{complex128}\PYG{p}{)}
+    \PYG{k}{return} \PYG{n}{np}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{n}{eta}\PYG{p}{)} \PYG{o}{*} \PYG{n}{B\PYGZus{}ideal}
+
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{phase\PYGZus{}shift}\PYG{p}{(}\PYG{n}{alpha}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Transfer matrix to apply a phase shift to upper mode.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{k}{return} \PYG{n}{np}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([[}\PYG{n}{np}\PYG{o}{.}\PYG{n}{exp}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{n}{j}\PYG{o}{*}\PYG{n}{alpha}\PYG{p}{),} \PYG{l+m+mi}{0}\PYG{p}{],}
+                     \PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]],} \PYG{n}{dtype}\PYG{o}{=}\PYG{n}{np}\PYG{o}{.}\PYG{n}{complex128}\PYG{p}{)}
+
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{U}\PYG{p}{(}\PYG{n}{theta}\PYG{p}{,} \PYG{n}{phi}\PYG{p}{,} \PYG{n}{eta}\PYG{o}{=}\PYG{l+m+mf}{1.0}\PYG{p}{):}
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}Transfer matrix of the MZI with phase shifts theta and phi.}
+\PYG{l+s+sd}{    eta: Power transmission per beamsplitter. Two beamsplitters per MZI.\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+    \PYG{n}{B} \PYG{o}{=} \PYG{n}{beamsplitter}\PYG{p}{(}\PYG{n}{eta}\PYG{p}{)}
+    \PYG{k}{return} \PYG{n}{phase\PYGZus{}shift}\PYG{p}{(}\PYG{n}{phi}\PYG{p}{)} \PYG{o}{@} \PYG{n}{B} \PYG{o}{@} \PYG{n}{phase\PYGZus{}shift}\PYG{p}{(}\PYG{n}{theta}\PYG{p}{)} \PYG{o}{@} \PYG{n}{B}
+\end{MintedVerbatim}

@@ -1,0 +1,22 @@
+\section{Conclusion} 
+%1/2 page
+% Summary of best classification results achieved (requirement f)
+%- Key insights and lessons learned
+%- Suggestions for future improvements
+We achieved the best classification result based on testing accuracy for the linear regression, where we calculated a testing accuracy of 0.998 for m=6 and energy normalization of the image vectors.
+For our model, we achieved the highest testing accuracy of 0.990 after 5 epochs for the use of phase encoding with \code{theta\_enc}=0.75, energy-normalization, $m=14$, mean square error loss, a learning rate of 1.0, a batch size of 64 and Haar initialization, a patience of 1 and \code{min\_delta}=0.0001.
+
+For the binary classification of digits ``1'' and ``7'', the linear regression outperformed our model, as this problem appears to be linearly separable.
+If the classification was expanded to include more digits or when two other digits were chosen, these results might change.
+Nevertheless, using the optical system it was possible to reach a testing accuracy close to the result of the linear regression.
+
+As was shown, the model's performance can be improved by optimizing the hyperparameters, providing insights that might be transferred to the physical implementation.
+The Haar initialization outperformed the random initialization of parameters.
+The performance does not improve infinitely with increasing layer count and side length of the images, but it reaches an optimum for certain parameters. Before fabricating a physical chip, it is important to optimize these parameters.%Therefore a physical model of the best parameters could be built.
+
+In comparison to the physical implementation, in the simulation it was possible to ``measure'' the electrical field at each position, simplifying the method. In a physical system only the intensities would be accessible. Thus the training method becomes more complicated, as the ``time-reversal interference method'' should be applied.
+It would be possible to model this measurement protocol as well.
+The most time-consuming step of our model is the gradient update. But the training does not seem to scale with the number of parameters, enabling the simulation of large models.
+We would expect to observe the same behavior for the physical model.
+
+As an outlook, it would be interesting to expand the model to more digits and to include losses and noise to evaluate the changes in performance.
