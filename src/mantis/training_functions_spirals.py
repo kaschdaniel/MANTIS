@@ -1,25 +1,28 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mantis.datasets import get_spiral_data
+
 from .baseline import *
 from .decoding import *
 from .encoding import *
 from .mesh import *
 from .metrics import *
+from .paths import RESULTS_DIR
 from .processing import *
 from .trainer import *
 from .visualize import *
 
 
 def linear_regression_sweep_spirals(
-    theta_max, #accepts array as well
-    points_per_spiral=250, 
-    spirals_number=2, 
+    theta_max,  # accepts array as well
+    points_per_spiral=250,
+    spirals_number=2,
     max_noise=0,
-    unit_radius=True, 
+    unit_radius=True,
     seed=1550,
-    channels=100, 
-    padding=0, 
+    channels=100,
+    padding=0,
     theta_enc=1,
     balanced=True,
     split_ratio=0.8,
@@ -49,9 +52,11 @@ def linear_regression_sweep_spirals(
             split_ratio,
             verbose,
             encoding="amplitude",
-            return_coords=False
+            return_coords=False,
         )
-        acc_normed.append(accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0,1])))
+        acc_normed.append(
+            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0, 1]))
+        )
     print(acc_normed)
     plt.plot(ms, acc_normed, marker="o", markersize=2, label="w/ energy normalization")
 
@@ -74,10 +79,10 @@ def linear_regression_sweep_spirals(
             split_ratio,
             verbose,
             encoding="amplitude",
-            return_coords=False
+            return_coords=False,
         )
         acc_not_normed.append(
-            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0,1]))
+            accuracy_of_linear_regression(E_train, Y_train, E_test, Y_test, np.array([0, 1]))
         )
     print(acc_not_normed)
     plt.plot(ms, acc_not_normed, marker="o", markersize=2, label="w/o energy normalization")
@@ -85,17 +90,14 @@ def linear_regression_sweep_spirals(
     plt.ylabel("Accuracy")
     plt.legend()
     plt.grid(alpha=0.2)
-    plt.savefig(
-        "results/linear_regression/spirals_m_sweep_with_and_without_energy_normalization.png",
-        dpi=600,
-        bbox_inches="tight",
-    )
+    out = RESULTS_DIR / "linear_regression" / "spirals_m_sweep.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out, dpi=600, bbox_inches="tight")
     print("Accuracy results of linear regression")
     print(
         f"Without energy normalization: {np.max(acc_not_normed):.3f} @ m={ms[np.argmax(acc_not_normed)]}"
     )
     print(f"With energy normalization: {np.max(acc_normed):.3f} @ m={ms[np.argmax(acc_normed)]}")
-
 
 
 def training_with_spirals(
@@ -118,7 +120,7 @@ def training_with_spirals(
     min_delta,
     eta_bs,
     alpha_fiber,
-    padding = 0,
+    padding=0,
     theta_max=np.pi,
     points_per_spiral=250,
     spirals_number=2,
@@ -128,8 +130,7 @@ def training_with_spirals(
     verbose=False,
     save_path=None,
 ):
-    
-    
+
     # Load and encode data (identical for all tests)
     E_train, Y_train, E_test, Y_test = get_spiral_data(
         theta_max,
@@ -146,7 +147,7 @@ def training_with_spirals(
         split_ratio,
         verbose,
         encoding,
-        return_coords=False
+        return_coords=False,
     )
 
     # CONFIG + MESH
@@ -185,5 +186,5 @@ def training_with_spirals(
         trainer.save(save_path, test_acc=test_acc)
     fig, _ = plot_training(trainer)
     plt.show()
-    return trainer    
+    return trainer
     return trainers

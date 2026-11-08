@@ -1,7 +1,4 @@
 # %%
-from mantis.training_functions_MNIST import *
-from mantis.training_functions_spirals import *
-
 from mantis.baseline import *
 from mantis.decoding import *
 from mantis.encoding import *
@@ -9,6 +6,8 @@ from mantis.mesh import *
 from mantis.metrics import *
 from mantis.processing import *
 from mantis.trainer import *
+from mantis.training_functions_MNIST import *
+from mantis.training_functions_spirals import *
 from mantis.visualize import *
 
 ###############################################################################
@@ -95,7 +94,7 @@ def main():
         normalization,
         channels,
         verbose,
-        save_path="results/spirals_test.json",
+        save_path=RESULTS_DIR / "spirals_m_sweep.png",
     )
 
     #### MNIST ################################################################
